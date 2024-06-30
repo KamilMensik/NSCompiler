@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "lexer.h": "c",
+        "parser.h": "c",
+        "stack.h": "c",
+        "hashmap.h": "c"
+    }
+}
