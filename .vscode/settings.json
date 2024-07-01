@@ -5,6 +5,8 @@
         "lexer.h": "c",
         "parser.h": "c",
         "stack.h": "c",
-        "hashmap.h": "c"
+        "hashmap.h": "c",
+        "defined_functions.h": "c",
+        "ast.h": "c"
     }
 }

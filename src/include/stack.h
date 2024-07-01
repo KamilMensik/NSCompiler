@@ -1,27 +1,25 @@
 #ifndef STACK_H
 #define STACK_H
 
-#include "ast.h"
-
-typedef struct AST_STACK_NODE_STRUCT ast_stack_node_T;
-struct AST_STACK_NODE_STRUCT {
-    ast_T *ast;
-    ast_stack_node_T *next;
+typedef struct STACK_NODE_STRUCT stack_node_T;
+struct STACK_NODE_STRUCT {
+    void *item;
+    stack_node_T *next;
 };
 
-typedef struct AST_STACK_STRUCT {
-    ast_stack_node_T *top;
+typedef struct STACK_STRUCT {
+    stack_node_T *top;
     unsigned int size;
-} ast_stack_T;
+} stack_T;
 
-ast_stack_T *init_ast_stack();
+stack_T *init_stack();
 
-ast_stack_node_T *init_ast_stack_node(ast_T *ast);
+stack_node_T *init_stack_node(void *item);
 
-ast_T *ast_pop(ast_stack_T *stack);
+void stack_push(stack_T *stack, void *item);
 
-ast_T *ast_peek(ast_stack_T *stack);
+void *stack_pop(stack_T *stack);
 
-void ast_push(ast_stack_T *stack, ast_T *ast);
+void *stack_peek(stack_T *stack);
 
 #endif

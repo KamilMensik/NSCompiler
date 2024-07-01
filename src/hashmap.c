@@ -5,7 +5,10 @@
 
 hashmap_node_T *init_hashmap_node(char *key, void *item) {
     hashmap_node_T *new_node = malloc(sizeof(struct HASHMAP_NODE_STRUCT));
-    new_node->key = key;
+
+    char *kept_key = malloc(sizeof(char) * strlen(key));
+    strcpy(kept_key, key);
+    new_node->key = kept_key;
     new_node->item = item;
 }
 
@@ -21,8 +24,11 @@ unsigned long djb2(char *string, int size) {
     unsigned long key = 5381;
     int c;
 
-    while ((c = *string++))
+    while ((c = *string)) {
         key = key * 33 + c;
+        string += 1;
+    }
+        
 
     return key % size;
 }

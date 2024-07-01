@@ -14,6 +14,18 @@ ast_T *init_ast(int type, token_T *token) {
     return ast;
 }
 
+ast_T *ast_pop(stack_T *stack) {
+    return (struct AST_STRUCT *)(stack_pop(stack));
+}
+
+ast_T *ast_peek(stack_T *stack) {
+    return (struct AST_STRUCT *)(stack_peek(stack));
+}
+
+void ast_push(stack_T *stack, ast_T *ast) {
+    stack_push(stack, ast);
+}
+
 void print_ast(ast_T *ast) {
     char *readable_type;
     switch (ast->type) {

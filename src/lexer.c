@@ -92,6 +92,7 @@ token_T *lexer_collect_number(lexer_T *lexer) {
 }
 
 token_T *lexer_collect_function(lexer_T *lexer) {
+    lexer_advance(lexer);
     char *value = calloc(1, sizeof(char));
     value[0] = '\0';
 
