@@ -1,4 +1,5 @@
 #include "include/lexer.h"
+#include "include/predicates.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,7 +13,7 @@ lexer_T* init_lexer(char *contents) {
     return lexer;
 }
 
-void lexer_advance(lexer_T *lexer) {
+void lexer_next_char(lexer_T *lexer) {
     if (lexer->c != '\0' && lexer->i < lexer->contents_len) {
         lexer->i += 1;
         lexer->c = lexer->contents[lexer->i];
@@ -21,7 +22,7 @@ void lexer_advance(lexer_T *lexer) {
 
 void lexer_skip_whitespace(lexer_T *lexer) {
     while (lexer->c == ' ') {
-        lexer_advance(lexer);
+        lexer_next_char(lexer);
     }
 }
 
@@ -30,92 +31,48 @@ token_T *lexer_get_next_token(lexer_T *lexer) {
         if (lexer->c == ' ')
             lexer_skip_whitespace(lexer);
 
-        if (lexer->c >= 48 && lexer->c <= 57) return lexer_collect_number(lexer);
+        if (is_number(lexer->c)) return lexer_collect_token(lexer, 0, 0, TOKEN_NUMBER, is_number);
 
         switch (lexer->c) {
-            case ',': return lexer_advance_with_token(lexer, init_token(TOKEN_DIVIDER, lexer_get_current_char_as_string(lexer)));
-            case 10: return lexer_advance_with_token(lexer, init_token(TOKEN_ENDLINE, "NEWLINE"));
-            case '.': return lexer_collect_region(lexer);
-            case ':': return lexer_collect_function(lexer);
-            default: return lexer_collect_identifier(lexer);
+            case ',': return lexer_collect_char_token(lexer, TOKEN_DIVIDER);
+            case '\n': return lexer_collect_char_token(lexer, TOKEN_ENDLINE);
+            case '.': return lexer_collect_token(lexer, 1, 0, TOKEN_REGION, is_symbol);
+            case ':': return lexer_collect_token(lexer, 1, 0, TOKEN_FUNCTION, is_symbol);
+            default: return lexer_collect_token(lexer, 0, 0, TOKEN_IDENTIFIER, is_symbol);
         }
     }
 
     return NULL;
 }
 
-token_T *lexer_collect_region(lexer_T *lexer) {
-    lexer_advance(lexer);
+token_T *lexer_collect_token(lexer_T *lexer, int skip_first_char, int skip_after_last, int token_type, int (*condition)(char)) {
+    if (skip_first_char) lexer_next_char(lexer);
 
-    char *value = calloc(1, sizeof(char));
-    value[0] = '\0';
+    int token_value_size = 8;
+    char *token_value = malloc(sizeof(char) * token_value_size);
 
-    for (int i = 2; ; i++) {
-        if (lexer->c == 10) break;
-        char *s = lexer_get_current_char_as_string(lexer);
-        value = realloc(value, i * sizeof(char));
-        strcat(value, s);
-        lexer_advance(lexer);
+    for (int i = 0; ; i++) {
+        if (i >= token_value_size) {
+            token_value_size *= 2;
+            realloc(token_value, token_value_size * sizeof(char));
+        }
+
+        if (condition(lexer->c)) {
+            token_value[i] = lexer->c;
+            lexer_next_char(lexer);
+        } else {
+            token_value[i] = '\0';
+            break;
+        }
     }
 
-    return init_token(TOKEN_REGION, value);
+    if (skip_after_last) lexer_next_char(lexer);
+    return init_token(token_type, token_value);
 }
 
-token_T *lexer_collect_identifier(lexer_T *lexer) {
-    char *value = calloc(1, sizeof(char));
-    value[0] = '\0';
+token_T *lexer_collect_char_token(lexer_T *lexer, int type) {
+    char string[2] = { lexer->c, '\0'};
+    lexer_next_char(lexer);
 
-    for (int i = 2; ; i++) {
-        if (!(lexer->c > 41 && lexer-> c < 140)) break;
-        char *s = lexer_get_current_char_as_string(lexer);
-        value = realloc(value, i * sizeof(char));
-        strcat(value, s);
-        lexer_advance(lexer);
-    }
-
-    return init_token(TOKEN_IDENTIFIER, value);
-}
-
-token_T *lexer_collect_number(lexer_T *lexer) {
-    char *value = calloc(1, sizeof(char));
-    value[0] = '\0';
-
-    for (int i = 2; ; i++) {
-        if (!(lexer->c >= 48 && lexer-> c <= 57)) break;
-        char *s = lexer_get_current_char_as_string(lexer);
-        value = realloc(value, i * sizeof(char));
-        strcat(value, s);
-        lexer_advance(lexer);
-    }
-
-    return init_token(TOKEN_NUMBER, value);
-}
-
-token_T *lexer_collect_function(lexer_T *lexer) {
-    lexer_advance(lexer);
-    char *value = calloc(1, sizeof(char));
-    value[0] = '\0';
-
-    for (int i = 2; ; i++) {
-        if (!(lexer->c > 41 && lexer-> c < 140)) break;
-        char *s = lexer_get_current_char_as_string(lexer);
-        value = realloc(value, i * sizeof(char));
-        strcat(value, s);
-        lexer_advance(lexer);
-    }
-
-    return init_token(TOKEN_FUNCTION, value);
-}
-
-token_T *lexer_advance_with_token(lexer_T *lexer, token_T *token) {
-    lexer_advance(lexer);
-
-    return token;
-}
-
-char *lexer_get_current_char_as_string(lexer_T *lexer) {
-    char *s = calloc(2, sizeof(char));
-    s[0] = lexer->c;
-    s[1] = '\0';
-    return s;
+    return init_token(type, string);
 }
