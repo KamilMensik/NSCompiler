@@ -4,13 +4,17 @@
 #include "include/ast.h"
 #include "include/defined_functions.h"
 #include "include/hashmap.h"
+#include "include/semantic_analyzer.h"
 
 int main() {
-    hashmap_T *defined_functions = generate_defined_functions_hashmap();
+    generate_defined_functions_hashmap();
 
     lexer_T *lexer = init_lexer("12 12 :+ 16 :+");
-    parser_T *parser = init_parser(lexer, defined_functions);
+    parser_T *parser = init_parser(lexer);
     ast_T *ast = parser_parse(parser);
-    print_ast(ast);
+
+    semantic_analyzer_T *semantic_analyzer = init_semantic_analyzer(ast);
+    semantic_analyze(semantic_analyzer);
+    printf("%d", ast->size_bytes);
     return 0;
 }

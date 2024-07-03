@@ -1,14 +1,14 @@
 #include "include/parser.h"
 #include "include/defined_functions.h"
+#include "include/hashmap.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-parser_T *init_parser(lexer_T *lexer, hashmap_T *defined_functions_hashmap) {
+parser_T *init_parser(lexer_T *lexer) {
     parser_T *parser = calloc(1, sizeof(struct PARSER_STRUCT));
     parser->lexer = lexer;
     parser->token = lexer_get_next_token(lexer);
     parser->stack = init_stack();
-    parser->defined_functions_hashmap = defined_functions_hashmap;
 
     return parser;
 }
@@ -23,8 +23,8 @@ void parser_handle_token(parser_T *parser) {
             break;
         case TOKEN_FUNCTION:
             new_ast = init_ast(AST_COMPOUND, parser->token);
-            new_ast->output_count = defined_functions_hashmap_get(parser->defined_functions_hashmap, parser->token->value)->output_count;
-            int parameter_count = defined_functions_hashmap_get(parser->defined_functions_hashmap, parser->token->value)->parameter_count;
+            new_ast->output_count = defined_functions_hashmap_get(parser->token->value)->output_count;
+            int parameter_count = defined_functions_hashmap_get(parser->token->value)->parameter_count;
             ast_T **max_children_array = malloc(sizeof(struct AST_STRUCT *) * parameter_count);
             int i = 0;
             for (;;i++) {

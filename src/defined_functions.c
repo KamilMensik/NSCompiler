@@ -20,7 +20,7 @@ void skip_until_character(FILE *file, char c) {
     skip_until_character(file, c);
 }
 
-hashmap_T *generate_defined_functions_hashmap() { 
+void generate_defined_functions_hashmap() { 
     hashmap_T *hashmap = new_hashmap(120);
     hashmap_T *data_conversion_table = generate_data_type_conversion_table();
 
@@ -34,8 +34,8 @@ hashmap_T *generate_defined_functions_hashmap() {
     int code;
     defined_function_variation_T **variations = malloc(sizeof(struct DEFINED_FUNCTION_VARIATION_STRUCT *) * 15);
     int variations_count = 0;
-    int *parameters_tmp;
-    int *output_tmp;
+    int *parameters_tmp = malloc(sizeof(int) * 20);
+    int *output_tmp = malloc(sizeof(int) * 20);
 
     while(1) {
         if (feof(file))
@@ -47,11 +47,6 @@ hashmap_T *generate_defined_functions_hashmap() {
         for (;;) {
             c = fgetc(file);
             if (c == '(') {
-                int *parameters = malloc(sizeof(int) * param_count);
-                int *output =  malloc(sizeof(int) * output_count);
-                parameters_tmp = parameters;
-                output_tmp = output;
-
                 for (int i = 0; i < 3; i++) {
                     c = fgetc(file);
                     if (c == ' ') {
@@ -73,7 +68,7 @@ hashmap_T *generate_defined_functions_hashmap() {
                         }
                         data_type_string[j] = c;
                     }
-                    parameters[i] = *get_data_type(data_conversion_table, data_type_string);
+                    parameters_tmp[i] = *get_data_type(data_conversion_table, data_type_string);
                 }
                 skip_until_character(file, '(');
                 for (int i = 0; i < output_count; i++) {
@@ -85,7 +80,7 @@ hashmap_T *generate_defined_functions_hashmap() {
                         }
                         data_type_string[j] = c;
                     }
-                    output[i] = *get_data_type(data_conversion_table, data_type_string);
+                    output_tmp[i] = *get_data_type(data_conversion_table, data_type_string);
                 }
 
                 if (output_count == 0)
@@ -94,28 +89,37 @@ hashmap_T *generate_defined_functions_hashmap() {
             } else if (c == ')') {
                 defined_function_variation_T *new_variation = malloc(sizeof(struct DEFINED_FUNCTION_VARIATION_STRUCT));
                 new_variation->code = code;
-                new_variation->parameters = parameters_tmp;
-                new_variation->output = output_tmp;
+                new_variation->parameters = malloc(sizeof(int) * param_count);
+                for (int i = 0; i < param_count; i++)
+                    new_variation->parameters[i] = parameters_tmp[i];
+                new_variation->output = malloc(sizeof(int) * output_count);
+                for (int i = 0; i < output_count; i++)
+                    new_variation->output[i] = output_tmp[i];
                 variations[variations_count++] = new_variation;
                 skip_until_character(file, '\n');
                 break;
             }
         }
 
+        defined_function_variation_T **kept_variations = malloc(sizeof(struct DEFINED_FUNCTION_VARIATION_STRUCT *) * variations_count);
+        for (int i = 0; i < variations_count; i++) {
+            kept_variations[i] = variations[i];
+        }
         defined_function_T *new_function = malloc(sizeof(struct DEFINED_FUNCTION_STRUCT));
         new_function->output_count = output_count;
         new_function->parameter_count = param_count;
         new_function->variation_count = variations_count;
-        new_function->variations = variations;
+        new_function->variations = kept_variations;
         hashmap_set(hashmap, name, new_function);
     }
-    return hashmap;
+    
+    defined_functions_hashmap = hashmap;
 }
 
-void defined_functions_hashmap_set(hashmap_T *hashmap, char *key, defined_function_T *defined_function) {
-    hashmap_set(hashmap, key, defined_function);
+void defined_functions_hashmap_set(char *key, defined_function_T *defined_function) {
+    hashmap_set(defined_functions_hashmap, key, defined_function);
 }
 
-defined_function_T *defined_functions_hashmap_get(hashmap_T *hashmap, char *key) {
-    return (defined_function_T *)hashmap_get(hashmap, key);
+defined_function_T *defined_functions_hashmap_get(char *key) {
+    return (defined_function_T *)hashmap_get(defined_functions_hashmap, key);
 }

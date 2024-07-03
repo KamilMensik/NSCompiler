@@ -10,6 +10,8 @@ ast_T *init_ast(int type, token_T *token) {
     ast->children_count = 0;
     ast->children = NULL;
     ast->token = token;
+    ast->additional_data = 0;
+    ast->output_count = 0;
 
     return ast;
 }
@@ -61,5 +63,5 @@ void print_ast(ast_T *ast) {
             printf(" ");
         printf(")");
     }
-    printf(")");
+    printf(")\n");
 }

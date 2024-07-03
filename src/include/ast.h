@@ -2,6 +2,8 @@
 #define AST_H
 #include "token.h"
 #include "stack.h"
+#include "defined_functions.h"
+
 typedef struct AST_STRUCT ast_T;
 struct AST_STRUCT {
     enum {
@@ -13,10 +15,13 @@ struct AST_STRUCT {
         AST_CONDITIONAL
     } type;
     unsigned int size_bytes;
-    unsigned int output_count;
     unsigned int children_count;
+    unsigned int additional_data;
+    unsigned int output_count;
     token_T *token;
     ast_T **children;
+    defined_function_T *assigned_defined_function;
+    unsigned int selected_defined_function_variation;
 };
 
 ast_T *init_ast(int type, token_T *token);
