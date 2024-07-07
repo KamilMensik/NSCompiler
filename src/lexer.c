@@ -54,7 +54,7 @@ token_T *lexer_collect_token(lexer_T *lexer, int skip_first_char, int skip_after
     for (int i = 0; ; i++) {
         if (i >= token_value_size) {
             token_value_size *= 2;
-            realloc(token_value, token_value_size * sizeof(char));
+            token_value = realloc(token_value, token_value_size * sizeof(char));
         }
 
         if (condition(lexer->c)) {

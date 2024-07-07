@@ -2,6 +2,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+hashmap_T *defined_functions_hashmap;
+
 hashmap_T *generate_data_type_conversion_table() {
     hashmap_T *hashmap = new_hashmap(20);
     static int data_types[1] = { DATA_INT };
@@ -24,7 +26,7 @@ void generate_defined_functions_hashmap() {
     hashmap_T *hashmap = new_hashmap(120);
     hashmap_T *data_conversion_table = generate_data_type_conversion_table();
 
-    FILE *file = fopen("src\\config\\defined_functions.cfg", "r");
+    FILE *file = fopen("src/config/defined_functions.cfg", "r");
     char c;
     int param_count;
     int output_count;

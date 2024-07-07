@@ -12,3 +12,8 @@ $(exec): $(objects)
 clean:
 	-del *.out
 	-del /s *.o
+
+clean_l:
+	-rm *.out
+	-rm *.o
+	-rm src/*.o

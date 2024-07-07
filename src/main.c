@@ -8,6 +8,7 @@
 
 int main() {
     generate_defined_functions_hashmap();
+    printf("Got here!\n");
 
     lexer_T *lexer = init_lexer("12 12 :+ 16 :+");
     parser_T *parser = init_parser(lexer);
