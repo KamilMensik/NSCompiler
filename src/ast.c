@@ -11,6 +11,7 @@ ast_T *init_ast(int type, token_T *token) {
     ast->children = NULL;
     ast->token = token;
     ast->additional_data = 0;
+    ast->additional_data_position = ADDITIONAL_DATA_INSIDE;
     ast->output_count = 0;
 
     return ast;

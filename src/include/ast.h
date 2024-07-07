@@ -16,7 +16,11 @@ struct AST_STRUCT {
     } type;
     unsigned int size_bytes;
     unsigned int children_count;
-    unsigned int additional_data;
+    unsigned short additional_data;
+    enum {
+        ADDITIONAL_DATA_BEHIND,
+        ADDITIONAL_DATA_INSIDE
+    } additional_data_position;
     unsigned int output_count;
     token_T *token;
     ast_T **children;

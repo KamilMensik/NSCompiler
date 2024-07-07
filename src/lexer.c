@@ -3,20 +3,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-lexer_T* init_lexer(char *contents) {
+lexer_T* init_lexer(FILE *file) {
     lexer_T *lexer = calloc(1, sizeof(struct LEXER_STRUCT));
-    lexer->contents = contents;
+    lexer->file = file;
+    lexer->c = fgetc(lexer->file);
     lexer->i = 0;
-    lexer->c = contents[0];
-    lexer->contents_len = strlen(contents);
 
     return lexer;
 }
 
 void lexer_next_char(lexer_T *lexer) {
-    if (lexer->c != '\0' && lexer->i < lexer->contents_len) {
+    if (!feof(lexer->file)) {
         lexer->i += 1;
-        lexer->c = lexer->contents[lexer->i];
+        lexer->c = fgetc(lexer->file);
     }
 }
 
@@ -27,7 +26,7 @@ void lexer_skip_whitespace(lexer_T *lexer) {
 }
 
 token_T *lexer_get_next_token(lexer_T *lexer) {
-    while (lexer->c != '\0' && lexer->i < lexer->contents_len) {
+    while (!feof(lexer->file)) {
         if (lexer->c == ' ')
             lexer_skip_whitespace(lexer);
 

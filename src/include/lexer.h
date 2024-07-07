@@ -1,15 +1,16 @@
 #ifndef LEXER_H
 #define LEXER_H
 #include "token.h"
+#include <stdio.h>
 
 typedef struct LEXER_STRUCT {
     char c;
     unsigned int i;
-    char *contents;
+    FILE *file;
     unsigned int contents_len;
 } lexer_T;
 
-lexer_T* init_lexer(char *contents);
+lexer_T* init_lexer(FILE *file);
 
 void lexer_next_char(lexer_T *lexer);
 

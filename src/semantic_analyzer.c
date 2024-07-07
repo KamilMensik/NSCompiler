@@ -15,6 +15,8 @@ void analyze_ast_atom(ast_T *ast) {
             ast->size_bytes = 4;
             ast->assigned_defined_function = defined_functions_hashmap_get("lnum");
             ast->selected_defined_function_variation = 0;
+            ast->additional_data_position = ADDITIONAL_DATA_BEHIND;
+            ast->additional_data = atoi(ast->token->value);
             break;
     }
 }
