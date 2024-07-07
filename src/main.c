@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
     semantic_analyzer_T *semantic_analyzer = init_semantic_analyzer(ast);
     semantic_analyze(semantic_analyzer);
-    printf("%d", ast->size_bytes);
+    printf("%d\n", ast->size_bytes);
 
     FILE *output = fopen("output.bin", "wb");
     build_nyassembly(ast, output);
