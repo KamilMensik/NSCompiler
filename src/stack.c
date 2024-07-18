@@ -4,6 +4,7 @@
 stack_T *init_stack() {
     stack_T *stack = calloc(1, sizeof(struct STACK_STRUCT));
     stack->top = NULL;
+    stack->size = 0;
 
     return stack;
 }

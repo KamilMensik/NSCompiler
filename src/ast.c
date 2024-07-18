@@ -3,16 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-ast_T *init_ast(int type, token_T *token) {
-    ast_T *ast = calloc(1, sizeof(struct AST_STRUCT));
+ast_T *init_ast(int type, int subtype) {
+    ast_T *ast = malloc(sizeof(struct AST_STRUCT));
     ast->type = type;
-    ast->size_bytes = 0;
-    ast->children_count = 0;
-    ast->children = NULL;
-    ast->token = token;
-    ast->additional_data = 0;
-    ast->additional_data_position = ADDITIONAL_DATA_INSIDE;
-    ast->output_count = 0;
+    ast->subtype = subtype;
 
     return ast;
 }
@@ -29,6 +23,19 @@ void ast_push(stack_T *stack, ast_T *ast) {
     stack_push(stack, ast);
 }
 
+ast_T **ast_stack_to_array(stack_T *stack, int keep_stack) {
+    ast_T **asts = malloc(sizeof(struct AST_STRUCT *) * stack->size);
+
+    for (int i = stack->size - 1; i >= 0; i--) {
+        asts[i] = ast_pop(stack);
+    }
+
+    if (!keep_stack) free(stack);
+
+    return asts;
+}
+
+/*
 void print_ast(ast_T *ast) {
     char *readable_type;
     switch (ast->type) {
@@ -59,10 +66,12 @@ void print_ast(ast_T *ast) {
     }
     if (ast->children_count > 0) {
         printf(" (CHILDREN ");
-        for (int i = 0; i < ast->children_count; i++)
+        for (int i = 0; i < ast->children_count; i++) {
             print_ast(ast->children[i]);
             printf(" ");
+        }
         printf(")");
     }
-    printf(")\n");
+    printf(")");
 }
+*/

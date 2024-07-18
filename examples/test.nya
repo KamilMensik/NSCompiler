@@ -1,1 +1,14 @@
-12 12 :+
+fun int ahoj(int ahoj) {
+    ahoj;
+    if (1) {
+        ahoj;
+    } else {
+        while(ahoj) {
+            if (test) {
+                return ahoj;
+            } else {
+                ahoj;
+            }
+        }
+    }
+}

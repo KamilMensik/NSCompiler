@@ -52,7 +52,6 @@ void *hashmap_get(hashmap_T *hashmap, char *key) {
     for (int i = 0; ; i ++) {
         int iterated_key = (hashed_key + i * i) % hashmap->items_size;
         if (hashmap->items[iterated_key] == NULL) {
-            printf("Key %s not found in hashmap!", key);
             return NULL;
         }
 

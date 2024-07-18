@@ -14,6 +14,8 @@ void analyze_ast_atom(ast_T *ast);
 
 void analyze_ast_compound(ast_T *ast);
 
+void analyze_ast_conditional(ast_T *ast);
+
 int static_type_check(ast_T *ast);
 
 void analyze_ast(ast_T *ast);

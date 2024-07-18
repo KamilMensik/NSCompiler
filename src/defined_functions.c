@@ -48,6 +48,10 @@ void generate_defined_functions_hashmap() {
         skip_until_character(file, '(');
         for (;;) {
             c = fgetc(file);
+
+            if (c == '#')
+                skip_until_character(file, '\n');
+
             if (c == '(') {
                 for (int i = 0; i < 3; i++) {
                     c = fgetc(file);
