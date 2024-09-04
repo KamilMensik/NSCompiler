@@ -3,40 +3,33 @@
 #include <string.h>
 #include <stdio.h>
 
-ast_list_T *init_ast_list(int size) {
-    ast_list_T *list = malloc(sizeof(struct AST_LIST_STRUCT));
+list_T *init_list(int size) {
+    list_T *list = malloc(sizeof(struct LIST_STRUCT));
     list->size = size;
     list->top = 0;
-    list->array = malloc(sizeof(ast_T *) * size);
+    list->array = malloc(sizeof(void *) * size);
 
     return list;
 }
 
-void ast_list_push(ast_list_T *list, ast_T *item) {
-    if (list->size == (list->top - 1)) {
+void list_push(list_T *list, void *item) {
+    if (list->top == list->size) {
         list->size *= 2;
+        realloc(list->array, list->size * sizeof(void *));
+    }
+
+    list->array[list->top] = item;
+    list->top += 1;
+}
+
+void *list_pop(list_T *list) {
+    list->top -= 1;
+    void *item = list->array[list->top];
+
+    if (list->top < list->size / 4) {
+        list->size /= 4;
         realloc(list->array, list->size * sizeof(ast_T *));
     }
 
-    list->array[list->top] = item;
-    list->top += 1;
-}
-
-token_list_T *init_token_list(int size) {
-    token_list_T *list = malloc(sizeof(struct TOKEN_LIST_STRUCT));
-    list->size = size;
-    list->top = 0;
-    list->array = malloc(sizeof(token_T *) * size);
-
-    return list;
-}
-
-void token_list_push(token_list_T *list, token_T *item) {
-    if (list->size == (list->top - 1)) {
-        list->size *= 2;
-        realloc(list->array, list->size * sizeof(token_T *));
-    }
-
-    list->array[list->top] = item;
-    list->top += 1;
+    return item;
 }

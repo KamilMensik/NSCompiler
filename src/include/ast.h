@@ -6,6 +6,8 @@ typedef struct AST_STRUCT ast_T;
 #include "token.h"
 #include "stack.h"
 #include "defined_functions.h"
+#include "list.h"
+#include <stdio.h>
 /*
 struct AST_STRUCT {
     enum {
@@ -40,9 +42,9 @@ enum {
 } AST_TYPES;
 
 enum {
-    FUNCTION_DEFINITION,
-    CONSTANT_DEFINITION,
-    VARIABLE_DEFINITION,
+    DEFINITION_FUNCTION,
+    DEFINITION_CONSTANT,
+    DEFINITION_VARIABLE,
 } AST_DEFINITION_SUBTYPES;
 
 enum {
@@ -72,7 +74,7 @@ struct PROGRAMME_PARAMS {
 
 struct VARIABLE_DEFINITION_PARAMS {
     token_T *type, *name;
-    ast_T *statement;
+    ast_T *expression;
 };
 
 struct FUNCTION_DEFINITION_PARAMS {
@@ -131,6 +133,7 @@ struct AST_STRUCT {
     int type;
     int subtype;
     union {
+        struct PROGRAMME_PARAMS programme_params;
         struct VARIABLE_DEFINITION_PARAMS variable_definition_params;
         struct FUNCTION_DEFINITION_PARAMS function_definition_params;
         struct COMPOUND_STATEMENT_PARAMS compound_statement_params;
@@ -156,6 +159,6 @@ void ast_push(stack_T *stack, ast_T *ast);
 
 ast_T **ast_stack_to_array(stack_T *stack, int keep_stack);
 
-void print_ast(ast_T *ast);
+void print_ast(ast_T *ast, FILE *file, list_T *indentation);
 
 #endif

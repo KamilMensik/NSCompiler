@@ -31,6 +31,12 @@ int main(int argc, char **argv) {
     parser_T *parser = init_parser(lexer);
     ast_T *ast = parser_parse(parser);
 
+    FILE *ast_print = fopen("test.txt", "w");
+
+    print_ast(ast, ast_print, NULL);
+
+    fclose(ast_print);
+
     /*
     semantic_analyzer_T *semantic_analyzer = init_semantic_analyzer(ast);
     semantic_analyze(semantic_analyzer);

@@ -1,0 +1,27 @@
+PROGRAMME
+  |==> VARIABLE DEFINITION TYPE=INT NAME=AHOJ
+  |      |==> EX: 12
+  |==> FUNCTION DEFINITION OUTPUT_TYPE=INT, NAME=AHOJ
+         |==> PARAMETERS=(INT AHOJ)
+         |==> ST COMP
+                |==> ST DEFVAR TYPE=INT NAME=TEST
+                |      |==> EX: 12
+                |==> ST EXPR
+                |      |==> EX: AHOJ
+                |==> ST COND
+                       |==> EX: 1
+                       |==> ST COMP
+                       |      |==> ST EXPR
+                       |             |==> EX: AHOJ
+                       |==> ST COMP
+                              |==> ST LOOP
+                                     |==> EX: AHOJ
+                                     |==> ST COMP
+                                            |==> ST COND
+                                                   |==> EX: TEST
+                                                   |==> ST COMP
+                                                   |      |==> ST RET
+                                                   |             |==> EX: AHOJ
+                                                   |==> ST COMP
+                                                          |==> ST EXPR
+                                                                 |==> EX: AHOJ

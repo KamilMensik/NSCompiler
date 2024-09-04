@@ -1,4 +1,8 @@
+let int ahoj = 12;
+
 fun int ahoj(int ahoj) {
+    let int test = 12;
+
     ahoj;
     if (1) {
         ahoj;

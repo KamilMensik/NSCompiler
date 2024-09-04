@@ -235,35 +235,50 @@ stack_T *get_tokens_inside_brackets(lexer_T *lexer, int type) {
     return result;
 }
 
+token_T *expression_get_safe(list_T *tokens, int i) {
+    if (tokens->top == i) return NULL;
+
+    return (token_T *)(tokens->array[i]);
+}
+
+ast_T **handle_funcall_parameters()
+
 ast_T *parse_expression(token_T **tokens, unsigned int token_size) {
-    stack_T *expressions = init_stack();
+    stack_T *expressions = init_list(8);
     stack_T *operators = init_stack();
     int tmp_size;
     
-    for (int i = 0; i < token_size;) {
+    for (int i = 0;;) {
+        token_T *token = expression_get_safe(tokens, i);
+        if (token==NULL) break;
+
         ast_T *expression = init_ast(EXPRESSION, 0);
-        token_T *token = tokens[i];
 
         switch (token->type) {
             case TOKEN_NUMBER:
                 expression->subtype = EXPRESSION_NUMBER;
                 expression->params.literal_expression_params.token = token;
-                ast_push(expressions, expression);
+                stack_push(expressions, expression);
                 i++;
                 break;
             case TOKEN_IDENTIFIER:
                 expression->subtype = EXPRESSION_IDENTIFIER;
                 expression->params.literal_expression_params.token = token;
-                if ((i + 1) < token_size && tokens[i+1]->type == TOKEN_PARENTHESIS) {
+                if (expression_get_safe(expressions, i+1)->type == TOKEN_PARENTHESIS) {
                     token = tokens[++i];
                     if (token->value[0] != '(')
                         throw_token_error(token, "Expression error, expected '('.");
 
-                    free(token);
-
                     stack_T *arguments = init_stack();
-                    stack_T *expression_tokens = init_stack();
+                    stack_T *depth = init_stack();
+                    stack_push(depth, token);
+
+                    list_T *expression_tokens = init_stack();
                     int finished = 0;
+
+                    while (1) {
+                        
+                    }
 
                     while (finished == 0) {
                         if (++i >= token_size)
@@ -406,7 +421,7 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
                     break;
                 case LET:
                     free(statement);
-                    statement = parse_variable_definition(lexer, VARIABLE_DEFINITION);
+                    statement = parse_variable_definition(lexer, DEFINITION_VARIABLE);
                     statement->type = STATEMENT;
                     statement->subtype = STATEMENT_VARIABLE_DECLARATION;
                     break;
@@ -443,7 +458,7 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
 }
 
 ast_T *parse_function_definition(lexer_T *lexer) {
-    ast_T *ast = init_ast(DEFINITION, FUNCTION_DEFINITION);
+    ast_T *ast = init_ast(DEFINITION, DEFINITION_FUNCTION);
     token_T *token = lexer_get_next_token(lexer);
     stack_T *stack = init_stack();
 
@@ -525,14 +540,9 @@ ast_T *parse_variable_definition(lexer_T *lexer, int type) {
 
     free(token);
 
-    ast->params.variable_definition_params.statement = parse_statement(lexer, NULL);
-
-    token = lexer_get_next_token(lexer);
-    if (token->type != TOKEN_SEMICOLON)
-        throw_token_error(token, "Variable definition error, expected ';'.");
-
-    free(token);
-
+    stack_T *tokens = get_tokens_until_character(lexer, ';', NULL);
+    int tmp_size = tokens->size;
+    ast->params.variable_definition_params.expression = parse_expression(token_stack_to_array(tokens, 0), tmp_size);
     return ast;
 }
 
@@ -549,10 +559,10 @@ ast_T *parse_uncertain(lexer_T *lexer) {
                     return parse_function_definition(lexer);
                 case LET:
                     free(token);
-                    return parse_variable_definition(lexer, VARIABLE_DEFINITION);
+                    return parse_variable_definition(lexer, DEFINITION_VARIABLE);
                 case CONST:
                     free(token);
-                    return parse_variable_definition(lexer, CONSTANT_DEFINITION);
+                    return parse_variable_definition(lexer, DEFINITION_CONSTANT);
                 default:
                     throw_token_error(token, "Unexpected keyword. Expected LET, CONST or FUN.");
             }
@@ -562,12 +572,17 @@ ast_T *parse_uncertain(lexer_T *lexer) {
 }
 
 ast_T *parser_parse(parser_T *parser) {
-    ast_list_T *programme = init_ast_list(8);
+    stack_T *programme = init_stack();
     while (1) {
         ast_T *new_ast = parse_uncertain(parser->lexer);
         if (new_ast == NULL)
             break;
         
-        ast_list_push(programme, new_ast);
+        ast_push(programme, new_ast);
     }
+
+    ast_T *programme_ast = init_ast(PROGRAMME, 0);
+    programme_ast->params.programme_params.definitions_count = programme->size;
+    programme_ast->params.programme_params.definitions = ast_stack_to_array(programme, 0);
+    return programme_ast;
 }

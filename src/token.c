@@ -6,7 +6,7 @@
 hashmap_T *keywords = NULL;
 
 token_T *init_token(int type, char *value, int line, int char_index) {
-    token_T *token = calloc(1, sizeof(struct TOKEN_STRUCT));
+    token_T *token = malloc(sizeof(struct TOKEN_STRUCT));
     token->type = type;
 
     char *kept_value;
