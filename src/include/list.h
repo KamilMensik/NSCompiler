@@ -3,7 +3,6 @@
 
 typedef struct LIST_STRUCT list_T;
 
-#include "ast.h"
 #include "token.h"
 
 struct LIST_STRUCT {

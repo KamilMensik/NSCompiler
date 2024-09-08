@@ -1,13 +1,14 @@
 #ifndef AST_H
 #define AST_H
 
-typedef struct AST_STRUCT ast_T;
 
 #include "token.h"
 #include "stack.h"
 #include "defined_functions.h"
 #include "list.h"
 #include <stdio.h>
+
+typedef struct AST_STRUCT ast_T;
 /*
 struct AST_STRUCT {
     enum {
@@ -34,20 +35,20 @@ struct AST_STRUCT {
 
 */
 
-enum {
+enum AST_TYPES {
     PROGRAMME,
     DEFINITION,
     STATEMENT,
     EXPRESSION
-} AST_TYPES;
+};
 
-enum {
+enum AST_DEFINITION_SUBTYPES {
     DEFINITION_FUNCTION,
     DEFINITION_CONSTANT,
     DEFINITION_VARIABLE,
-} AST_DEFINITION_SUBTYPES;
+};
 
-enum {
+enum AST_STATEMENT_SUBTYPES {
     STATEMENT_COMPOUND,
     STATEMENT_CONDITIONAL,
     STATEMENT_LOOP,
@@ -55,9 +56,9 @@ enum {
     STATEMENT_VARIABLE_DECLARATION,
     STATEMENT_EXPRESSION,
     STATEMENT_NOP
-} AST_STATEMENT_SUBTYPES;
+};
 
-enum {
+enum AST_EXPRESSION_SUBTYPES {
     EXPRESSION_NUMBER,
     EXPRESSION_IDENTIFIER,
     EXPRESSION_IN_PARENTHESIS,
@@ -65,7 +66,7 @@ enum {
     EXPRESSION_FUNCALL,
     EXPRESSION_BINARY_OP,
     EXPRESSION_UNARY_OP
-} AST_EXPRESSION_SUBTYPES;
+};
 
 struct PROGRAMME_PARAMS {
     ast_T **definitions;
@@ -121,12 +122,12 @@ struct FUNCALL_EXPRESSION_PARAMS {
 
 struct BINARY_OP_EXPRESSION_PARAMS {
     ast_T *l_expression, *r_expression;
-    token_T *operator;
+    token_T *op;
 };
 
 struct UNARY_OP_EXPRESSION_PARAMS {
     ast_T *expression;
-    token_T *operator;
+    token_T *op;
 };
 
 struct AST_STRUCT {

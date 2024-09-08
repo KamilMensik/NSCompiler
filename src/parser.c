@@ -1,8 +1,11 @@
 #include "include/parser.h"
-#include "include/defined_functions.h"
-#include "include/hashmap.h"
+#include "include/ast.h"
+//#include "include/defined_functions.h"
+//#include "include/hashmap.h"
 #include "include/list.h"
 #include "include/error.h"
+#include "include/stack.h"
+#include "include/token.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -177,14 +180,14 @@ void parser_handle_token(parser_T *parser) {
 
 */
 
-stack_T *get_tokens_until_character(lexer_T *lexer, char c, token_T *token) {
-    stack_T *stack = init_stack();
+list_T *get_tokens_until_character(lexer_T *lexer, char c, token_T *token) {
+    list_T *list = init_list(8);
     
     if (token==NULL)
         token = lexer_get_next_token(lexer);
 
     while (token->value[0] != c) {
-        token_push(stack, token);
+        list_push(list, token);
         token = lexer_get_next_token(lexer);
 
         if (token->type == TOKEN_EOF) {
@@ -194,59 +197,79 @@ stack_T *get_tokens_until_character(lexer_T *lexer, char c, token_T *token) {
     }
 
     free(token);
-    return stack;
+    return list;
 }
 
-stack_T *get_tokens_inside_brackets(lexer_T *lexer, int type) {
-    stack_T *branching = init_stack(); 
-    stack_T *result = init_stack();
-    token_T *token = lexer_get_next_token(lexer);
-    char start[3] = {'(', '[', '{'};
-    char end[3] = {')', ']', '}'};
+// Handle parenthesis depth, returns 1 if depth is completed
+int handle_parenthesis_depth(stack_T *depth, token_T *token) {
+    token_T *checked_token;
+    switch (token->value[0]) {
+        case '(': case '{': case '[':
+            stack_push(depth, token);
+            break;
+        case ')':
+            checked_token = token_pop(depth);
+            if (checked_token->value[0] != '(') 
+                throw_error("Bad bracket");
+            break;
+        case '}':
+            checked_token = token_pop(depth);
+            if (token_pop(depth)->value[0] != '{') 
+                throw_error("Bad bracket");
+            break;
+        case ']':
+            checked_token = token_pop(depth);
+            if (token_pop(depth)->value[0] != '[') 
+                throw_error("Bad bracket");
+            break;
+    }
+    
+    if (depth->size == 0) {
+        free(token);
+        free(checked_token);
+        return 1;
+    }
 
-    if (token->type != type && token->value[0] != start[type-7])
+    return 0;
+}
+
+list_T *get_tokens_inside_brackets(lexer_T *lexer) {
+    stack_T *branching = init_stack(); 
+    list_T *result = init_list(8);
+    token_T *token = lexer_get_next_token(lexer);
+
+    if ((token->type != TOKEN_PARENTHESIS && token->type != TOKEN_CURLY_BRACE && token->type != TOKEN_SQUARE_BRACKET) &&
+        token->value[0] != '(' && token->value[0] != '{' && token->value[0] != '[')
         throw_token_error(token, "Expected bracket");
     
     token_push(branching, token);
     while(1) {
         token = lexer_get_next_token(lexer);
 
-        if (token->type >= 7 && token->type <= 9) {
-            if (start[token->type - 7] == token->value[0])
-                token_push(branching, token);
-            else {
-                token_T *popped_token = token_pop(branching);
-
-                if (end[popped_token->type - 7] != token->value[0])
-                    throw_token_error(token, "Bad type of parenthesis detected.");
-
-                if (branching->size == 0) {
-                    free(popped_token);
-                    free(token);
-                    free(branching);
-                    break;
-                }
-            }
+        if ((token->type == TOKEN_PARENTHESIS || token->type == TOKEN_CURLY_BRACE || token->type == TOKEN_SQUARE_BRACKET) &&
+            handle_parenthesis_depth(branching, token)) {
+                break;
+        } else {
+            list_push(result, token);
         }
-
-        token_push(result, token);
     }
-
+    
+    free(branching);
     return result;
 }
 
 token_T *expression_get_safe(list_T *tokens, int i) {
-    if (tokens->top == i) return NULL;
+    if (tokens->top >= i) return NULL;
 
     return (token_T *)(tokens->array[i]);
 }
 
-ast_T **handle_funcall_parameters()
+ast_T **handle_funcall_parameters();
 
-ast_T *parse_expression(token_T **tokens, unsigned int token_size) {
-    stack_T *expressions = init_list(8);
+ast_T *parse_expression(list_T *tokens) {
+    list_T *expressions = init_list(8);
     stack_T *operators = init_stack();
-    int tmp_size;
+    stack_T *depth;
     
     for (int i = 0;;) {
         token_T *token = expression_get_safe(tokens, i);
@@ -258,94 +281,97 @@ ast_T *parse_expression(token_T **tokens, unsigned int token_size) {
             case TOKEN_NUMBER:
                 expression->subtype = EXPRESSION_NUMBER;
                 expression->params.literal_expression_params.token = token;
-                stack_push(expressions, expression);
+                list_push(expressions, expression);
                 i++;
                 break;
             case TOKEN_IDENTIFIER:
                 expression->subtype = EXPRESSION_IDENTIFIER;
                 expression->params.literal_expression_params.token = token;
                 if (expression_get_safe(expressions, i+1)->type == TOKEN_PARENTHESIS) {
-                    token = tokens[++i];
+                    token = tokens->array[++i];
                     if (token->value[0] != '(')
                         throw_token_error(token, "Expression error, expected '('.");
 
+                    expression->subtype = EXPRESSION_FUNCALL;
+                    expression->params.funcall_expression_params.function_expression = tokens->array[i - 1];
                     stack_T *arguments = init_stack();
-                    stack_T *depth = init_stack();
+                    depth = init_stack();
                     stack_push(depth, token);
 
-                    list_T *expression_tokens = init_stack();
+                    list_T *expression_tokens = init_list(8);
                     int finished = 0;
 
-                    while (1) {
+                    while (!finished) {
+                        if (++i >= tokens->top)
+                            throw_error("Expression error, unfinished expression");
                         
-                    }
-
-                    while (finished == 0) {
-                        if (++i >= token_size)
-                                throw_error("Expression error, unfinished expression");
-                        token = tokens[i];
+                        token = tokens->array[++i];
                         switch (token->type) {
-                            case TOKEN_PARENTHESIS:
-                                if (token->value[0] != ')')
-                                    throw_token_error(token, "Expression error, expected ')'");
-
-                                tmp_size = expression_tokens->size;
-                                if (tmp_size == 0)
-                                    throw_token_error(token, "Expression error, expected function parameter.");
-
-                                free(token);
-                                ast_T *function_call = init_ast(EXPRESSION, EXPRESSION_FUNCALL);
-                                function_call->params.funcall_expression_params.function_expression = expression;
-
-                                ast_push(arguments, parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size));
-                                
-                                function_call->params.funcall_expression_params.param_expressions_size = arguments->size;
-                                function_call->params.funcall_expression_params.param_expressions = ast_stack_to_array(arguments, 0);
-                                ast_push(expressions, function_call);
-                                finished = 1;
+                            case TOKEN_PARENTHESIS: case TOKEN_CURLY_BRACE: case TOKEN_SQUARE_BRACKET:
+                                if (handle_parenthesis_depth(depth, token)) {
+                                    free(depth);
+                                    if (expression_tokens->top > 0)
+                                        stack_push(arguments, parse_expression(expression_tokens));
+                                    finished = 1;
+                                } else {
+                                    list_push(expression_tokens, token);
+                                }
                                 break;
                             case TOKEN_DIVIDER:
-                                tmp_size = expression_tokens->size;
-                                ast_push(arguments, parse_expression(token_stack_to_array(expression_tokens, 1), tmp_size));
                                 free(token);
+                                if (depth->size == 1) {
+                                    // TODO: FIX POTENTIAL MEMORY LEAK
+                                    stack_push(arguments, parse_expression(expression_tokens));
+                                } else {
+                                    list_push(expression_tokens, token);
+                                }
                                 break;
                             default:
-                                token_push(expression_tokens, token);
+                                list_push(expression_tokens, token);
                                 break;
                         }
                     }
-                } else if ((i + 1) < token_size && tokens[i+1]->type == TOKEN_SQUARE_BRACKET) {
-                    token = tokens[++i];
+                    
+                    expression->params.funcall_expression_params.param_expressions_size = arguments->size;
+                    expression->params.funcall_expression_params.param_expressions = ast_stack_to_array(arguments, 0);
+                    list_push(expressions, expression);
+                } else if (expression_get_safe(tokens, i + 1)->type == TOKEN_SQUARE_BRACKET) {
+                    token = tokens->array[++i];
                     if (token->value[0] != '[')
                         throw_token_error(token, "Expression error, expected '['.");
 
-                    free(token);
+                    list_T *token_list = init_list(8);
+                    depth = init_stack();
+                    int finished = 0;
 
-                    stack_T *expression_tokens = init_stack();
-
-                    while(1) {
-                        if (++i >= token_size)
+                    while(!finished) {
+                        if (++i >= tokens->top)
                             throw_error("Expression error, unfinished expression");
 
-                        token = tokens[i];
+                        token = tokens->array[i];
+                        switch (token->type) {
+                            case TOKEN_PARENTHESIS: case TOKEN_CURLY_BRACE: case TOKEN_SQUARE_BRACKET:
+                                if (handle_parenthesis_depth(depth, token)) {
+                                    if (token_list->size == 0)
+                                        throw_token_error(token, "Expression error, expected indexing expression.");
 
-                        if (token->type == TOKEN_SQUARE_BRACKET && token->value[0] == ']') {
-                            if (expression_tokens->size == 0)
-                                throw_token_error(token, "Expression error, expected indexing expression.");
-
-                            free(token);
-                            ast_T *indexing_expression = init_ast(EXPRESSION, EXPRESSION_INDEXING);
-                            indexing_expression->params.indexing_expression_params.arrray_expression = expression;
-                            int tmp_size = expression_tokens->size;
-                            indexing_expression->params.indexing_expression_params.index_expression = parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size);
-                            ast_push(expressions, indexing_expression);
-                            break;
-                        } else {
-                            token_push(expression_tokens, token);
+                                    free(depth);
+                                    ast_T *indexing_expression = init_ast(EXPRESSION, EXPRESSION_INDEXING);
+                                    indexing_expression->params.indexing_expression_params.arrray_expression = expression;
+                                    indexing_expression->params.indexing_expression_params.index_expression = parse_expression(token_list);
+                                    list_push(expressions, indexing_expression);
+                                    finished = 1;
+                                } else {
+                                    list_push(token_list, token);
+                                }
+                                break;
+                            default:
+                                list_push(token_list, token);
+                                break;
                         }
                     }
                 } else {
-                    ast_push(expressions, expression);
+                    list_push(expressions, expression);
                     i++;
                 }
 
@@ -356,7 +382,7 @@ ast_T *parse_expression(token_T **tokens, unsigned int token_size) {
 
                 free(token);
                 expression->subtype = EXPRESSION_IN_PARENTHESIS;
-                expression->params.parented_expression_params.expression = parse_expression(NULL, 0);
+                expression->params.parented_expression_params.expression = parse_expression(NULL);
                 if (token->type != TOKEN_PARENTHESIS && token->value[0] != ')')
                     throw_token_error(token, "Expression error, expected ')'.");
 
@@ -370,7 +396,11 @@ ast_T *parse_expression(token_T **tokens, unsigned int token_size) {
         }
     }
     free(tokens);
-    return stack_pop(expressions);
+    free(operators);
+    ast_T *final_expression = list_pop(expressions);
+    free(expressions->array);
+    free(expressions);
+    return final_expression;
 }
 
 ast_T *parse_statement(lexer_T *lexer, token_T *token) {
@@ -378,7 +408,7 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
         token = lexer_get_next_token(lexer);
     ast_T *statement = init_ast(STATEMENT, 0);
     stack_T *stack = NULL;
-    stack_T *expression_tokens = NULL;
+    list_T *expression_tokens = NULL;
     int tmp_size;
     int depth;
 
@@ -391,9 +421,7 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
                 case IF:
                     statement->subtype = STATEMENT_CONDITIONAL;
                     free(token);
-                    expression_tokens = get_tokens_inside_brackets(lexer, TOKEN_PARENTHESIS);
-                    tmp_size = expression_tokens->size;
-                    statement->params.conditional_statement_params.condition_expression = parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size);
+                    statement->params.conditional_statement_params.condition_expression = parse_expression(get_tokens_inside_brackets(lexer));
                     statement->params.conditional_statement_params.if_block_statement = parse_statement(lexer, NULL);
                     statement->params.conditional_statement_params.else_block_statement = NULL;
                     token = lexer_peek(lexer);
@@ -407,17 +435,13 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
                 case WHILE:
                     statement->subtype = STATEMENT_LOOP;
                     free(token);
-                    expression_tokens = get_tokens_inside_brackets(lexer, TOKEN_PARENTHESIS);
-                    tmp_size = expression_tokens->size;
-                    statement->params.loop_statement_params.condition_expression = parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size);
+                    statement->params.loop_statement_params.condition_expression = parse_expression(get_tokens_inside_brackets(lexer));
                     statement->params.loop_statement_params.statement = parse_statement(lexer, NULL);
                     break;
                 case RETURN:
                     statement->subtype = STATEMENT_RETURN;
                     free(token);
-                    expression_tokens = get_tokens_until_character(lexer, ';', NULL);
-                    tmp_size = expression_tokens->size;
-                    statement->params.regular_expression_statement_params.expression = parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size);
+                    statement->params.regular_expression_statement_params.expression = parse_expression(get_tokens_until_character(lexer, ';', NULL));
                     break;
                 case LET:
                     free(statement);
@@ -448,9 +472,7 @@ ast_T *parse_statement(lexer_T *lexer, token_T *token) {
             break;
         default:
             statement->subtype = STATEMENT_EXPRESSION;
-            expression_tokens = get_tokens_until_character(lexer, ';', token);
-            tmp_size = expression_tokens->size;
-            statement->params.regular_expression_statement_params.expression = parse_expression(token_stack_to_array(expression_tokens, 0), tmp_size);
+            statement->params.regular_expression_statement_params.expression = parse_expression(get_tokens_until_character(lexer, ';', token));
             break;
     }
 
@@ -539,10 +561,7 @@ ast_T *parse_variable_definition(lexer_T *lexer, int type) {
         throw_token_error(token, "Variable definition error, expected '='.");
 
     free(token);
-
-    stack_T *tokens = get_tokens_until_character(lexer, ';', NULL);
-    int tmp_size = tokens->size;
-    ast->params.variable_definition_params.expression = parse_expression(token_stack_to_array(tokens, 0), tmp_size);
+    ast->params.variable_definition_params.expression = parse_expression(get_tokens_until_character(lexer, ';', NULL));
     return ast;
 }
 
@@ -566,9 +585,10 @@ ast_T *parse_uncertain(lexer_T *lexer) {
                 default:
                     throw_token_error(token, "Unexpected keyword. Expected LET, CONST or FUN.");
             }
-        default:
-            throw_token_error(token, "Unexpected symbol, expected a keyword.");
     }
+
+    throw_token_error(token, "Unexpected symbol, expected a keyword.");
+    return NULL;
 }
 
 ast_T *parser_parse(parser_T *parser) {

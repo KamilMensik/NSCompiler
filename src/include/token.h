@@ -4,7 +4,7 @@
 #include "hashmap.h"
 #include "stack.h"
 
-enum {
+enum KEYWORDS {
     LET = 0,
     CONST = 1,
     FUN = 2,
@@ -13,9 +13,9 @@ enum {
     WHILE = 5,
     RETURN = 6, 
     INT = 7
-} KEYWORDS;
+};
 
-enum {
+enum TOKEN_TYPES {
     TOKEN_UNARY_OPERATOR,
     TOKEN_BINARY_OPERATOR,
     TOKEN_ASSIGNMENT,
@@ -29,7 +29,7 @@ enum {
     TOKEN_SEMICOLON,
     TOKEN_EOF,
     TOKEN_KEYWORD,
-} TOKEN_TYPES;
+};
 
 typedef struct TOKEN_STRUCT {
     int type;
