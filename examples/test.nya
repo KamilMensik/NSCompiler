@@ -1,11 +1,14 @@
+fun int test() {
+    ahoj[test];
+    test(ahoj(ahoj));
+}
+
 let int ahoj = 12;
 
 fun int ahoj(int ahoj) {
-    let int test = 12;
-
-    ahoj;
+    ahoj[test[2]];
     if (1) {
-        ahoj;
+        ahoj[test];
     } else {
         while(ahoj) {
             if (test) {

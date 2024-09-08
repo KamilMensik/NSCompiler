@@ -115,6 +115,22 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
                 case EXPRESSION_NUMBER: case EXPRESSION_IDENTIFIER:
                     fprintf(file, "%s\n", ast->params.literal_expression_params.token->value);
                     break;
+                case EXPRESSION_INDEXING:
+                    fprintf(file, "INDEXING: %s\n", ast->params.indexing_expression_params.arrray_expression->params.literal_expression_params.token->value);
+                    list_push_immediate_char(indentation, 0);
+                    print_ast(ast->params.indexing_expression_params.index_expression, file, indentation);
+                    list_pop_immediate(indentation);
+                    break;
+                case EXPRESSION_FUNCALL:
+                    fprintf(file, "FUNCALL: %s\n", ast->params.funcall_expression_params.function_expression->params.literal_expression_params.token->value);
+                    for (int i = 0; i < ast->params.funcall_expression_params.param_expressions_size; i++) {
+                        list_push_immediate_char(indentation, (i != ast->params.funcall_expression_params.param_expressions_size - 1));
+                        print_ast(ast->params.funcall_expression_params.param_expressions[i], file, indentation);
+                        list_pop_immediate(indentation);
+                    }
+                    break;
+                default:
+                    fprintf(file, "\n");
             }
             break;
         case STATEMENT:
