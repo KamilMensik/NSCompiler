@@ -6,6 +6,12 @@ PROGRAMME
   |             |      |==> EX: INDEXING: AHOJ
   |             |             |==> EX: TEST
   |             |==> ST EXPR
+  |             |      |==> EX: B_OP: +
+  |             |             |==> EX: 1
+  |             |             |==> EX: B_OP: /
+  |             |                    |==> EX: 1
+  |             |                    |==> EX: 2
+  |             |==> ST EXPR
   |                    |==> EX: FUNCALL: TEST
   |                           |==> EX: FUNCALL: AHOJ
   |                                  |==> EX: AHOJ
