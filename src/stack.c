@@ -24,6 +24,9 @@ void stack_push(stack_T *stack, void *item) {
 }
 
 void *stack_pop(stack_T *stack) {
+    if (stack->size == 0)
+        return NULL;
+
     stack_node_T *stack_node = stack->top;
     stack->top = stack_node->next;
     void *item = stack_node->item;
@@ -33,5 +36,8 @@ void *stack_pop(stack_T *stack) {
 }
 
 void *stack_peek(stack_T *stack) {
+    if (stack->size == 0)
+        return NULL;
+
     return stack->top->item;
 }

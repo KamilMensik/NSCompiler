@@ -30,4 +30,6 @@ void defined_functions_hashmap_set(char *key, defined_function_T *defined_functi
 
 defined_function_T *defined_functions_hashmap_get(char *key);
 
+int operator_priority(char *op);
+
 #endif

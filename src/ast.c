@@ -129,6 +129,15 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
                         list_pop_immediate(indentation);
                     }
                     break;
+                case EXPRESSION_BINARY_OP:
+                    fprintf(file, "B_OP: %s\n", ast->params.binary_op_expression_params.op->value);
+                    list_push_immediate_char(indentation, 1);
+                    print_ast(ast->params.binary_op_expression_params.l_expression, file, indentation);
+                    list_pop_immediate(indentation);
+                    list_push_immediate_char(indentation, 0);
+                    print_ast(ast->params.binary_op_expression_params.r_expression, file, indentation);
+                    list_pop_immediate(indentation);
+                    break; 
                 default:
                     fprintf(file, "\n");
             }

@@ -1,6 +1,6 @@
 #include "include/parser.h"
 #include "include/ast.h"
-//#include "include/defined_functions.h"
+#include "include/defined_functions.h"
 //#include "include/hashmap.h"
 #include "include/list.h"
 #include "include/error.h"
@@ -232,11 +232,42 @@ ast_T *parse_expression(list_T *tokens) {
                 printf("Unimplemented");
                 exit(1);
                 break;
+            case TOKEN_BINARY_OPERATOR:
+                if (expressions->top < 1)
+                    throw_token_error(token, "Binary operator is without an expression before it");
+
+                if (operators->size > 0 && operator_priority(token_peek(operators)->value) <= operator_priority(token->value)) {
+                    if (expressions->top < 2)
+                        throw_token_error(token, "Binary operator is missing second expression");
+
+                    ast_T *binary_expression = init_ast(EXPRESSION, EXPRESSION_BINARY_OP);
+                    binary_expression->params.binary_op_expression_params.op = token_pop(operators);
+                    binary_expression->params.binary_op_expression_params.r_expression = (ast_T *)list_pop(expressions);
+                    binary_expression->params.binary_op_expression_params.l_expression = (ast_T *)list_pop(expressions);
+                    list_push(expressions, binary_expression);
+                }
+                
+                i++;
+                token_push(operators, token);
+                break;
             default:
                 break;
         }
     }
     free(tokens);
+
+    while (operators->size != 0) {
+        token_T *op = token_pop(operators);
+        if (expressions->top < 2)
+            throw_token_error(op, "Operator missing its expressions");
+
+        ast_T *binary_expression = init_ast(EXPRESSION, EXPRESSION_BINARY_OP);
+        binary_expression->params.binary_op_expression_params.op = op;
+        binary_expression->params.binary_op_expression_params.r_expression = (ast_T *)list_pop(expressions);
+        binary_expression->params.binary_op_expression_params.l_expression = (ast_T *)list_pop(expressions);
+        list_push(expressions, binary_expression);
+    }
+
     free(operators);
     ast_T *final_expression = list_pop(expressions);
     free(expressions->array);

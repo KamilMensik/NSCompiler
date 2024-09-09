@@ -129,3 +129,39 @@ void defined_functions_hashmap_set(char *key, defined_function_T *defined_functi
 defined_function_T *defined_functions_hashmap_get(char *key) {
     return (defined_function_T *)hashmap_get(defined_functions_hashmap, key);
 }
+
+int operator_priority(char *op) {
+    int op_number = 0;
+
+    for (int i = 0;;i++) {
+        if (op[i] == '\0')
+            break;
+
+        op_number += op[i] << (i * 8);
+    }
+
+    switch (op_number) {
+        case '*': case '/': case '%':
+            return 3;
+        case '+': case '-':
+            return 4;
+        case '<<': case '>>':
+            return 5;
+        case '>': case '<': case '>=': case '<=':
+            return 6;
+        case '==': case '!=':
+            return 7;
+        case '&':
+            return 8;
+        case '^':
+            return 9;
+        case '|':
+            return 10;
+        case '&&':
+            return 11;
+        case '||':
+            return 12;
+        default:
+            return 0;
+    }
+}
