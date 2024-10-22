@@ -1,4 +1,5 @@
 #include "include/token.h"
+#include "include/hashmap.h"
 #include "include/data_types.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -6,10 +7,9 @@
 
 hashmap_T *keywords = NULL;
 
-token_T *init_token(int type, char *value, int line, int char_index) {
+token_T *init_token(int type, char *value, int line, int char_index, char should_free_value) {
     token_T *token = malloc(sizeof(struct TOKEN_STRUCT));
     token->type = type;
-
     char *kept_value;
 
     if (type == TOKEN_ENDLINE) {
@@ -19,17 +19,19 @@ token_T *init_token(int type, char *value, int line, int char_index) {
         kept_value = malloc(strlen(value) + 1);
         strcpy(kept_value, value);
     }
+    if (should_free_value)
+        free(value);
 
     if (type == TOKEN_IDENTIFIER) {
         if (keywords == NULL)
-            keywords = init_keywords();
+            init_keywords();
 
-        char *try_get_keyword = (char *)hashmap_get(keywords, value);
+        char *try_get_keyword = (char *)hashmap_get(keywords, kept_value);
         if (try_get_keyword != NULL) {
             token->type = TOKEN_KEYWORD;
             token->keyword_id = (int)*try_get_keyword;
         } else {
-            int *try_get_datatype = get_data_type(value);
+            int *try_get_datatype = get_data_type(kept_value);
             if (try_get_datatype != NULL) {
                 token->type = TOKEN_DATA_TYPE;
                 token->data_type_id = try_get_datatype[0];
@@ -43,7 +45,7 @@ token_T *init_token(int type, char *value, int line, int char_index) {
     return token;
 }
 
-hashmap_T *init_keywords() {
+void init_keywords() {
     hashmap_T *hashmap = new_hashmap(50);
     
     FILE *file = fopen("src/config/keywords.cfg", "r");
@@ -66,7 +68,12 @@ hashmap_T *init_keywords() {
         }
     }
 
-    return hashmap;
+    fclose(file);
+    keywords = hashmap;
+}
+
+void free_keywords() {
+    free_hashmap(keywords, 1);
 }
 
 token_T *token_pop(stack_T *stack) {
@@ -133,10 +140,18 @@ void print_token(token_T *token) {
         case TOKEN_EOF:
             readable_type = "EOF";
             break;
+        case TOKEN_STRING:
+            readable_type = "STRING";
+            break;
     }
 
     if (token->type == TOKEN_KEYWORD)
         printf("(TOKEN %s %s KEYWORD_ID: %d)", readable_type, token->value, token->keyword_id);
     else
         printf("(TOKEN %s %s)", readable_type, token->value);
+}
+
+void free_token(token_T *token) {
+    free(token->value);
+    free(token);
 }

@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include "include/data_types.h"
+#include "include/defined_functions.h"
 #include "include/lexer.h"
 #include "include/parser.h"
 #include "include/ast.h"
@@ -25,7 +27,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
     
-    lexer_T *lexer = init_lexer(input);
+    lexer_T *lexer = init_lexer(input, argv[1]);
 
     parser_T *parser = init_parser(lexer);
     ast_T *ast = parser_parse(parser);
@@ -54,6 +56,15 @@ int main(int argc, char **argv) {
     total_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
     printf("File compiled successfully in %.5fs\n", total_time_used);
+
+    // FREE EVERYTHING AFTER RUN
+    free_ast(ast, 1);
+    free_symbols();
+    free_semantic_analyzer(semantic_analyzer);
+    free_parser(parser, 1);
+    free_keywords();
+    free_data_type_conversion_table();
+    free_command_codes();
 
     return 0;
 }

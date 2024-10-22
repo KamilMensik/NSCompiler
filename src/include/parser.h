@@ -25,6 +25,8 @@ typedef struct PARSER_STRUCT {
 
 parser_T *init_parser(lexer_T *lexer);
 
+void free_parser(parser_T *parser, int final);
+
 void handle_normal_function(parser_T *parser);
 
 void handle_conditional_function(parser_T *parser);

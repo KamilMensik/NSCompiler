@@ -3,8 +3,8 @@
 #include "stdio.h"
 #include <string.h>
 
-const char data_type_strings[][16] = { "NONE", "UINT", "INT", "UBYTE", "BYTE", "USHORT", "SHORT", };
-const unsigned data_type_sizes[] = { 0, 4, 4, 1, 1, 2, 2, };
+const char data_type_strings[][16] = { "NONE", "UINT", "INT", "UBYTE", "BYTE", "USHORT", "SHORT", "STRING", };
+const unsigned data_type_sizes[] = { 0, 4, 4, 1, 1, 2, 2, 4, };
 
 unsigned int data_type_strings_size = (sizeof(data_type_strings) / sizeof(*data_type_strings));
 hashmap_T *data_type_conversion_table = NULL;
@@ -23,6 +23,10 @@ hashmap_T *generate_data_type_conversion_table() {
     }
 
     return hashmap;
+}
+
+void free_data_type_conversion_table() {
+    free_hashmap(data_type_conversion_table, 1);
 }
 
 int *get_data_type(char *string) {

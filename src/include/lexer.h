@@ -8,11 +8,15 @@ typedef struct LEXER_STRUCT {
     unsigned int char_index;
     unsigned int line;
     FILE *file;
+    char *filename;
     unsigned char should_get_next_character;
     token_T *peeked_token;
+    unsigned char collecting_string;
 } lexer_T;
 
-lexer_T* init_lexer(FILE *file);
+lexer_T* init_lexer(FILE *file, char *filename);
+
+void free_lexer(lexer_T *lexer);
 
 void lexer_next_char(lexer_T *lexer);
 

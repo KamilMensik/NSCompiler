@@ -11,6 +11,8 @@ typedef struct SEMANTIC_ANALYZER_STRUCT {
 
 semantic_analyzer_T *init_semantic_analyzer();
 
+void free_semantic_analyzer(semantic_analyzer_T *analyzer);
+
 ast_T *semantic_analyze(semantic_analyzer_T *analyzer, ast_T *programme);
 
 #endif

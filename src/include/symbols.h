@@ -53,6 +53,8 @@ typedef struct SYMBOL_STRUCT {
 
 void init_symbols();
 
+void free_symbols();
+
 symbol_T *get_symbol(char *name, char *context);
 
 void set_symbol(char *name, char *context, symbol_T *sym);

@@ -13,6 +13,8 @@ struct LIST_STRUCT {
 
 list_T *init_list(int size);
 
+void free_list(list_T *list);
+
 void list_push(list_T *list, void *item);
 
 void *list_pop(list_T *list);

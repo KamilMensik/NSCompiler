@@ -36,6 +36,10 @@ void generate_command_codes() {
     }
 }
 
+void free_command_codes() {
+    free_hashmap(command_codes, 1);
+}
+
 unsigned char get_command_code(char *name) {
     if (command_codes == NULL)
         generate_command_codes();
@@ -106,6 +110,8 @@ void handle_variable_assignment(void *ast) {
         throw_error("Can only assign values to a variable");
 
     variable_T *var = l_expression->symbol->variable;
+    if (expression->type == STATEMENT)
+        free(l_expression);
     if (data_type_is_number(var->type))
         throw_error_unless_correct_datatypes(data_type_is_number(var->type) &&
                                              data_type_is_number(r_expression->return_type));

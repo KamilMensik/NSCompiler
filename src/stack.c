@@ -9,6 +9,13 @@ stack_T *init_stack() {
     return stack;
 }
 
+void free_stack(stack_T *stack) {
+    while (stack->top != NULL) {
+        stack_pop(stack);
+    }
+    free(stack);
+}
+
 stack_node_T *init_stack_node(void *item) {
     stack_node_T *node = calloc(1, sizeof(struct STACK_NODE_STRUCT));
     node->item = item;

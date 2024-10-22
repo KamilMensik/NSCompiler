@@ -1,4 +1,5 @@
 #include "include/ast.h"
+#include "include/list.h"
 #include "include/token.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@ ast_T *init_ast(int type, int subtype) {
     ast->subtype = subtype;
     ast->symbol = NULL;
     ast->is_returning = 0;
+    ast->is_constant = 0;
 
     return ast;
 }
@@ -32,7 +34,7 @@ ast_T **ast_stack_to_array(stack_T *stack, int keep_stack) {
         asts[i] = ast_pop(stack);
     }
 
-    if (!keep_stack) free(stack);
+    if (!keep_stack) free_stack(stack);
 
     return asts;
 }
@@ -209,4 +211,109 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
             }
             break;
     }
+}
+
+list_T *constants_to_free = NULL;
+
+void free_ast(ast_T *ast, int recursively) {
+    if (ast->is_constant)
+        return;
+
+    switch (ast->type) {
+        case PROGRAMME:
+            if (recursively) {
+                constants_to_free = init_list(8);
+                for (int i = 0; i < ast->params.programme_params.function_definitions_count; i++)
+                    free_ast(ast->params.programme_params.function_definitions[i], recursively);
+                for (int i = 0; i < ast->params.programme_params.variable_definitions_count; i++)
+                    free_ast(ast->params.programme_params.variable_definitions[i], recursively);
+                for (int i = constants_to_free->top - 1; i >= 0; i--) {
+                    ast_T *cons = constants_to_free->array[i];
+                    cons->is_constant = 0;
+                    free_ast(cons, recursively);
+                }
+                free_list(constants_to_free);
+            }
+            free(ast->params.programme_params.function_definitions);
+            free(ast->params.programme_params.variable_definitions);
+            break;
+        case DEFINITION:
+            switch(ast->subtype) {
+                case DEFINITION_VARIABLE: case DEFINITION_CONSTANT:
+                    if (ast->subtype == DEFINITION_VARIABLE)
+                        free_ast(ast->params.variable_definition_params.expression, recursively);
+                    else {
+                        list_push(constants_to_free, ast->params.variable_definition_params.expression);
+                    }
+                    free_token(ast->params.variable_definition_params.name);
+                    free_token(ast->params.variable_definition_params.type);
+                    break;
+                case DEFINITION_FUNCTION:
+                    free_ast(ast->params.function_definition_params.statement, recursively);
+                    free_token(ast->params.function_definition_params.type);
+                    free_token(ast->params.function_definition_params.name);
+                    for (int i = 0; i < ast->params.function_definition_params.parameters_count * 2; i++)
+                        free_token(ast->params.function_definition_params.parameters[i]);
+                    free(ast->params.function_definition_params.parameters);
+                    break;
+            }
+            break;
+        case STATEMENT:
+            switch (ast->subtype) {
+                case STATEMENT_LOOP:
+                    free_ast(ast->params.loop_statement_params.statement, recursively);
+                    free_ast(ast->params.loop_statement_params.condition_expression, recursively);
+                    break;
+                case STATEMENT_RETURN: case STATEMENT_EXPRESSION:
+                    free_ast(ast->params.regular_expression_statement_params.expression, recursively);
+                    break;
+                case STATEMENT_COMPOUND:
+                    for (int i = 0; i < ast->params.compound_statement_params.statement_count; i++) {
+                        free_ast(ast->params.compound_statement_params.statements[i], recursively);
+                    }
+                    free(ast->params.compound_statement_params.statements);
+                    break;
+                case STATEMENT_CONDITIONAL:
+                    free_ast(ast->params.conditional_statement_params.condition_expression, recursively);
+                    free_ast(ast->params.conditional_statement_params.if_block_statement, recursively);
+                    if (ast->params.conditional_statement_params.else_block_statement)
+                        free_ast(ast->params.conditional_statement_params.else_block_statement, recursively);
+                    break;
+                case STATEMENT_VARIABLE_DECLARATION:
+                    free_ast(ast->params.variable_definition_params.expression, recursively);
+                    free_token(ast->params.variable_definition_params.name);
+                    free_token(ast->params.variable_definition_params.type);
+                    break;
+            }
+            break;
+        case EXPRESSION:
+            switch (ast->subtype) {
+                case EXPRESSION_NUMBER: case EXPRESSION_IDENTIFIER: case EXPRESSION_STRING:
+                    free_token(ast->params.literal_expression_params.token);
+                    break;
+                case EXPRESSION_FUNCALL:
+                    free_ast(ast->params.funcall_expression_params.function_expression, recursively);
+                    for (int i = 0; i < ast->params.funcall_expression_params.param_expressions_size; i++) {
+                        free_ast(ast->params.funcall_expression_params.param_expressions[i], recursively);
+                    }
+                    free(ast->params.funcall_expression_params.param_expressions);
+                    break;
+                case EXPRESSION_INDEXING:
+                    free_ast(ast->params.indexing_expression_params.index_expression, recursively);
+                    free_ast(ast->params.indexing_expression_params.arrray_expression, recursively);
+                    break;
+                case EXPRESSION_UNARY_OP:
+                    free_ast(ast->params.unary_op_expression_params.expression, recursively);
+                    free_token(ast->params.unary_op_expression_params.op);
+                    break;
+                case EXPRESSION_BINARY_OP:
+                    free_ast(ast->params.binary_op_expression_params.l_expression, recursively);
+                    free_ast(ast->params.binary_op_expression_params.r_expression, recursively);
+                    free_token(ast->params.binary_op_expression_params.op);
+                    break;
+            }
+            break;
+    }
+
+    free(ast);
 }

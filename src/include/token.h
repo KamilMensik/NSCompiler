@@ -1,7 +1,6 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include "hashmap.h"
 #include "stack.h"
 
 enum KEYWORDS {
@@ -43,9 +42,11 @@ typedef struct TOKEN_STRUCT {
     int char_index;
 } token_T;
 
-token_T *init_token(int type, char *value, int line, int char_index);
+token_T *init_token(int type, char *value, int line, int char_index, char should_free_value);
 
-hashmap_T *init_keywords();
+void init_keywords();
+
+void free_keywords();
 
 token_T *token_pop(stack_T *stack);
 
@@ -58,5 +59,7 @@ token_T **token_stack_to_array(stack_T *stack, int keep_stack);
 void print_token(token_T *token);
 
 int token_data_type(token_T *token);
+
+void free_token(token_T *token);
 
 #endif

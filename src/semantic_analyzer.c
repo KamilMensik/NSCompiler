@@ -8,7 +8,7 @@
 #include "string.h"
 #include <stdio.h>
 
-void analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression);
+ast_T *analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression);
 void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement);
 void analyze_variable(semantic_analyzer_T *analyzer, ast_T *variable);
 
@@ -20,19 +20,19 @@ void analyze_number(semantic_analyzer_T *analyzer, ast_T *expression) {
         expression->command.value = converted_number;
         expression->command.value_type = VALUE_INSIDE;
         expression->command.code = get_command_code("LNUM");
-        expression->return_type = SINT;
+        expression->return_type = UBYTE;
     } else if (converted_number < 65536) {
         expression->size = 2;
         expression->command.value = converted_number;
         expression->command.value_type = VALUE_OUTSIDE;
         expression->command.code = get_command_code("LNUML");
-        expression->return_type = UBYTE;
+        expression->return_type = UINT;
     } else {
         throw_error("Numbers above 65535 are not supported yet!");
     }
 }
 
-void analyze_identifier(semantic_analyzer_T *analyzer, ast_T *expression) {
+void analyze_identifier(semantic_analyzer_T *analyzer, ast_T *expression, ast_T **expression_pointer) {
     symbol_T *sym = expression->symbol;
     char command[10] = "";
     switch (sym->type) {
@@ -72,13 +72,8 @@ void analyze_identifier(semantic_analyzer_T *analyzer, ast_T *expression) {
             expression->command.value = memory_address;
             break;
         case constant:
-            // TODO: ADD AST_FREE METHOD AND FREE OLD EXPRESSION NOT TO LEAK MEMORY!
-            expression->subtype = ((ast_T *)(sym->constant->expression))->subtype;
-            expression->size = ((ast_T *)(sym->constant->expression))->size;
-            expression->return_type = ((ast_T *)(sym->constant->expression))->return_type;
-            expression->params = ((ast_T *)(sym->constant->expression))->params;
-            expression->command = ((ast_T *)(sym->constant->expression))->command;
-            analyze_expression(analyzer, expression);
+            free_ast(expression, 1);
+            *expression_pointer = (ast_T *)sym->constant->expression;
             break;
         case function:
             throw_token_error(expression->params.literal_expression_params.token, "Using a function without calling it is not supported.");
@@ -86,39 +81,39 @@ void analyze_identifier(semantic_analyzer_T *analyzer, ast_T *expression) {
 }
 
 void analyze_binary_operator(semantic_analyzer_T *analyzer, ast_T *expression) {
-    struct BINARY_OP_EXPRESSION_PARAMS params = expression->params.binary_op_expression_params;
-    analyze_expression(analyzer, params.l_expression);
-    analyze_expression(analyzer, params.r_expression);
-    expression->size = params.l_expression->size + params.r_expression->size + 1;
+    struct BINARY_OP_EXPRESSION_PARAMS *params = &expression->params.binary_op_expression_params;
+    params->l_expression = analyze_expression(analyzer, params->l_expression);
+    params->r_expression = analyze_expression(analyzer, params->r_expression);
+    expression->size = params->l_expression->size + params->r_expression->size + 1;
     expression->command.value = 0;
     expression->command.value_type = VALUE_INSIDE;
     handle_binary_operator_expression(expression);
 }
 
 void analyze_unary_operator(semantic_analyzer_T *analyzer, ast_T *expression) {
-    struct UNARY_OP_EXPRESSION_PARAMS params = expression->params.unary_op_expression_params;
-    analyze_expression(analyzer, params.expression);
-    expression->size = params.expression->size + 1;
+    struct UNARY_OP_EXPRESSION_PARAMS *params = &expression->params.unary_op_expression_params;
+    params->expression = analyze_expression(analyzer, params->expression);
+    expression->size = params->expression->size + 1;
     expression->command.value = 0;
     expression->command.value_type = VALUE_INSIDE;
     handle_unary_operator_expression(expression);
 }
 
 void analyze_funcall(semantic_analyzer_T *analyzer, ast_T *expression) {
-    struct FUNCALL_EXPRESSION_PARAMS params = expression->params.funcall_expression_params;
+    struct FUNCALL_EXPRESSION_PARAMS *params = &expression->params.funcall_expression_params;
     function_T *function = expression->symbol->function;
-    for (int i = 0; i < params.param_expressions_size; i++) {
-        ast_T *child_expression = params.param_expressions[i];
-        analyze_expression(analyzer, child_expression);
+    for (int i = 0; i < params->param_expressions_size; i++) {
+        ast_T *child_expression = params->param_expressions[i];
+        params->param_expressions[i] = analyze_expression(analyzer, child_expression);
         expression->size += child_expression->size;
 
         if (data_type_is_number(function->param_datatypes[i])) {
             if (!data_type_is_number(child_expression->return_type)) {
-                printf("%d. parameter of function is not a number. Got: %s\n", i, data_type_strings[params.param_expressions[i]->return_type]);
+                printf("%d. parameter of function is not a number. Got: %s\n", i, data_type_strings[params->param_expressions[i]->return_type]);
                 exit(1);
             }
         } else if (function->param_datatypes[i] != child_expression->return_type) {
-                printf("%d. parameter of function expected to be: %s. Got: %s\n", i, data_type_strings[function->param_datatypes[i]], data_type_strings[params.param_expressions[i]->return_type]);
+                printf("%d. parameter of function expected to be: %s. Got: %s\n", i, data_type_strings[function->param_datatypes[i]], data_type_strings[params->param_expressions[i]->return_type]);
                 exit(1);
         }
     }
@@ -130,10 +125,14 @@ void analyze_funcall(semantic_analyzer_T *analyzer, ast_T *expression) {
     expression->size += 2;
 }
 
-void analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression) {
+ast_T *analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression) {
     switch(expression->subtype) {
         case EXPRESSION_NUMBER:
             analyze_number(analyzer, expression);
+            break;
+        case EXPRESSION_STRING:
+            expression->return_type = STRING;
+            // TODO: ADD IMMEDIATE STRINGS
             break;
         case EXPRESSION_FUNCALL:
             analyze_funcall(analyzer, expression);
@@ -149,30 +148,32 @@ void analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression) {
             analyze_binary_operator(analyzer, expression);
             break;
         case EXPRESSION_IDENTIFIER:
-            analyze_identifier(analyzer, expression);
+            analyze_identifier(analyzer, expression, &expression);
             break;
     }
+
+    return expression;
 }
 
 void analyze_loop_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
-    struct LOOP_STATEMENT_PARAMS params = statement->params.loop_statement_params;
-    analyze_expression(analyzer, params.condition_expression);
-    analyze_statement(analyzer, params.statement);
+    struct LOOP_STATEMENT_PARAMS *params = &statement->params.loop_statement_params;
+    params->condition_expression = analyze_expression(analyzer, params->condition_expression);
+    analyze_statement(analyzer, params->statement);
 
     // Add a forward jump to condition
-    if (params.statement->size < 255) {
-        params.statement->command.code = get_command_code("JMP");
-        params.statement->command.value_type = VALUE_INSIDE;
+    if (params->statement->size < 255) {
+        params->statement->command.code = get_command_code("JMP");
+        params->statement->command.value_type = VALUE_INSIDE;
         statement->size = 1;
     }  else {
-        params.statement->command.code = get_command_code("JMPL");
-        params.statement->command.value_type = VALUE_OUTSIDE;
+        params->statement->command.code = get_command_code("JMPL");
+        params->statement->command.value_type = VALUE_OUTSIDE;
         statement->size = 2;
     }
-    params.statement->command.value = params.statement->size;
+    params->statement->command.value = params->statement->size;
 
     // Add conditioned backwards jump
-    unsigned int cached_size = params.condition_expression->size + params.statement->size;
+    unsigned int cached_size = params->condition_expression->size + params->statement->size;
     if (cached_size < 254) {
         statement->size += 1;
         statement->command.code = get_command_code("CJMPB");
@@ -191,7 +192,7 @@ void analyze_return_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
     ast_T *expression = statement->params.regular_expression_statement_params.expression;
     unsigned char return_type = NONE;
     if (expression != NULL) {
-        analyze_expression(analyzer, expression);
+        expression = analyze_expression(analyzer, expression);
         return_type = expression->return_type;
     }
     function_T *function = get_symbol(analyzer->context, NULL)->function;
@@ -213,30 +214,30 @@ void analyze_return_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
 }
 
 void analyze_conditional_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
-    struct CONDITIONAL_STATEMENT_PARAMS params = statement->params.conditional_statement_params;
-    analyze_expression(analyzer, params.condition_expression);
-    analyze_statement(analyzer, params.if_block_statement);
+    struct CONDITIONAL_STATEMENT_PARAMS *params = &statement->params.conditional_statement_params;
+    params->condition_expression = analyze_expression(analyzer, params->condition_expression);
+    analyze_statement(analyzer, params->if_block_statement);
 
     // Create else block if it doesnt exist already
-    if (params.else_block_statement == NULL)
-        params.else_block_statement = init_ast(STATEMENT, STATEMENT_NOP);
+    if (params->else_block_statement == NULL)
+        params->else_block_statement = init_ast(STATEMENT, STATEMENT_NOP);
 
     // Analyze else block + assign correct command
-    analyze_statement(analyzer, params.else_block_statement);
-    if (params.if_block_statement->size < 256) {
-        params.else_block_statement->command.code = get_command_code("JMP");
-        params.else_block_statement->command.value_type = VALUE_INSIDE;
-        params.else_block_statement->size += 1;
+    analyze_statement(analyzer, params->else_block_statement);
+    if (params->if_block_statement->size < 256) {
+        params->else_block_statement->command.code = get_command_code("JMP");
+        params->else_block_statement->command.value_type = VALUE_INSIDE;
+        params->else_block_statement->size += 1;
     } else {
-        params.else_block_statement->command.code = get_command_code("JMPL");
-        params.else_block_statement->command.value_type = VALUE_OUTSIDE;
-        params.else_block_statement->size += 2;
+        params->else_block_statement->command.code = get_command_code("JMPL");
+        params->else_block_statement->command.value_type = VALUE_OUTSIDE;
+        params->else_block_statement->size += 2;
     }
-    params.else_block_statement->command.value = params.if_block_statement->size;
+    params->else_block_statement->command.value = params->if_block_statement->size;
 
     // Assign correct command to if block
-    statement->size = params.if_block_statement->size + params.condition_expression->size + params.else_block_statement->size;
-    if (params.else_block_statement->size < 256) {
+    statement->size = params->if_block_statement->size + params->condition_expression->size + params->else_block_statement->size;
+    if (params->else_block_statement->size < 256) {
         statement->command.code = get_command_code("CJMP");
         statement->command.value_type = VALUE_INSIDE;
         statement->size += 1;
@@ -245,8 +246,8 @@ void analyze_conditional_statement(semantic_analyzer_T *analyzer, ast_T *stateme
         statement->command.value_type = VALUE_OUTSIDE;
         statement->size += 2;
     }
-    statement->params.conditional_statement_params.else_block_statement = params.else_block_statement;
-    statement->command.value = params.else_block_statement->size;
+    statement->params.conditional_statement_params.else_block_statement = params->else_block_statement;
+    statement->command.value = params->else_block_statement->size;
 }
 
 void analyze_compound_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
@@ -281,7 +282,7 @@ void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
             analyze_return_statement(analyzer, statement);
             break;
         case STATEMENT_EXPRESSION:
-            analyze_expression(analyzer, statement->params.regular_expression_statement_params.expression);
+            statement->params.regular_expression_statement_params.expression = analyze_expression(analyzer, statement->params.regular_expression_statement_params.expression);
             statement->size = statement->params.regular_expression_statement_params.expression->size;
             break;
         case STATEMENT_CONDITIONAL:
@@ -294,16 +295,16 @@ void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
 }
 
 void analyze_function(semantic_analyzer_T *analyzer, ast_T *function) {
-    struct FUNCTION_DEFINITION_PARAMS params = function->params.function_definition_params;
-    analyzer->context = params.name->value;
+    struct FUNCTION_DEFINITION_PARAMS *params = &function->params.function_definition_params;
+    analyzer->context = params->name->value;
     function_T *function_symbol = function->symbol->function;
     function_symbol->address = analyzer->defined_function_sizes;
 
-    analyze_statement(analyzer, params.statement);
-    function->size = params.statement->size + 1;
-    if (!params.statement->is_returning) {
+    analyze_statement(analyzer, params->statement);
+    function->size = params->statement->size + 1;
+    if (!params->statement->is_returning) {
         if (function_symbol->return_type != NONE) {
-            printf("Function %s does not return a value in every possible case", params.name->value);
+            printf("Function %s does not return a value in every possible case", params->name->value);
             exit(1);
         }
 
@@ -320,7 +321,7 @@ void analyze_function(semantic_analyzer_T *analyzer, ast_T *function) {
 void analyze_variable(semantic_analyzer_T *analyzer, ast_T *variable) {
     struct VARIABLE_DEFINITION_PARAMS *params = &variable->params.variable_definition_params;
     variable_T *var = variable->symbol->variable;
-    analyze_expression(analyzer, params->expression);
+    params->expression = analyze_expression(analyzer, params->expression);
 
     if (data_type_is_number(var->type)) {
         if (!data_type_is_number(params->expression->return_type)) {
@@ -334,11 +335,31 @@ void analyze_variable(semantic_analyzer_T *analyzer, ast_T *variable) {
 }
 
 void analyze_constant(semantic_analyzer_T *analyzer, ast_T *constant) {
-    return;
+    struct VARIABLE_DEFINITION_PARAMS *params = &constant->params.variable_definition_params;
+    constant_T *cons = constant->symbol->constant;
+    params->expression = analyze_expression(analyzer, params->expression);
+
+    if (data_type_is_number(cons->type)) {
+        if (!data_type_is_number(params->expression->return_type)) {
+            printf("Expression inside variable %s is not a number. Got: %s\n", params->name->value, data_type_strings[params->expression->return_type]);
+            exit(1);
+        }
+    } else if (cons->type != params->expression->return_type) {
+            printf("Expression inside variable %s expected to be: %s. Got: %s\n", params->name->value, data_type_strings[cons->type], data_type_strings[params->expression->return_type]);
+            exit(1);
+    }
+    params->expression->is_constant = 1;
 }
 
 semantic_analyzer_T *init_semantic_analyzer() {
     return (semantic_analyzer_T *)calloc(1, sizeof(struct SEMANTIC_ANALYZER_STRUCT));
+}
+
+void free_semantic_analyzer(semantic_analyzer_T *analyzer) {
+    if (analyzer->context)
+        free(analyzer->context);
+
+    free(analyzer);
 }
 
 ast_T *semantic_analyze(semantic_analyzer_T *analyzer, ast_T *programme) {

@@ -10,6 +10,11 @@ list_T *init_list(int size) {
     return list;
 }
 
+void free_list(list_T *list) {
+    free(list->array);
+    free(list);
+}
+
 void list_push(list_T *list, void *item) {
     if (list->top == list->size) {
         list->size *= 2;

@@ -14,6 +14,8 @@ typedef struct STACK_STRUCT {
 
 stack_T *init_stack();
 
+void free_stack(stack_T *stack);
+
 stack_node_T *init_stack_node(void *item);
 
 void stack_push(stack_T *stack, void *item);

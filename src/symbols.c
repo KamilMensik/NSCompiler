@@ -13,6 +13,42 @@ void init_symbols() {
     global_memory_assignment = init_list(8);
 }
 
+void free_memory_assignment(list_T *list) {
+    for (int i = 0; i < list->top; i++) {
+        free(list->array[i]);
+    }
+    free_list(list);
+}
+
+void free_symbol(symbol_T *sym) {
+    switch (sym->type) {
+        case function:
+            free(sym->function->param_datatypes);
+            free_memory_assignment(sym->function->memory_assignment);
+            for (int i = 0; i < sym->function->variables->existing_items->top; i++) {
+                free_symbol(hashmap_get(sym->function->variables, sym->function->variables->existing_items->array[i]));
+            }
+            free_hashmap(sym->function->variables, 0);
+            free(sym->function);
+            break;
+        case variable:
+            free(sym->variable);
+            break;
+        case constant:
+            free(sym->constant);
+            break;
+    }
+    free(sym);
+}
+
+void free_symbols() {
+    for (int i = 0; i < symbol_table->existing_items->top; i++) {
+        free_symbol(hashmap_get(symbol_table, symbol_table->existing_items->array[i]));
+    }
+    free_hashmap(symbol_table, 0);
+    free_memory_assignment(global_memory_assignment);
+}
+
 int memory_offset(list_T *memory_assignment, unsigned long *memory_assignment_start, unsigned char amount) {
     unsigned int memory_start = *memory_assignment_start;
     unsigned int res = sizeof(long) * memory_start;

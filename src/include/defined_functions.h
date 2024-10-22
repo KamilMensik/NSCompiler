@@ -14,6 +14,8 @@ typedef struct COMMAND_STRUCT {
     unsigned int value;
 } command_T;
 
+void free_command_codes();
+
 unsigned int string_to_int(char *str);
 
 int operator_priority(char *op);

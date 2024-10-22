@@ -24,13 +24,13 @@ enum AST_DEFINITION_SUBTYPES {
 };
 
 enum AST_STATEMENT_SUBTYPES {
+    STATEMENT_NOP,
     STATEMENT_COMPOUND,
     STATEMENT_CONDITIONAL,
     STATEMENT_LOOP,
     STATEMENT_RETURN,
     STATEMENT_VARIABLE_DECLARATION,
-    STATEMENT_EXPRESSION,
-    STATEMENT_NOP
+    STATEMENT_EXPRESSION
 };
 
 enum AST_EXPRESSION_SUBTYPES {
@@ -39,7 +39,8 @@ enum AST_EXPRESSION_SUBTYPES {
     EXPRESSION_INDEXING,
     EXPRESSION_FUNCALL,
     EXPRESSION_BINARY_OP,
-    EXPRESSION_UNARY_OP
+    EXPRESSION_UNARY_OP,
+    EXPRESSION_STRING,
 };
 
 struct PROGRAMME_PARAMS {
@@ -110,6 +111,7 @@ struct AST_STRUCT {
     unsigned char return_type;
     symbol_T *symbol;
     unsigned char is_returning;
+    unsigned char is_constant;
     union {
         struct PROGRAMME_PARAMS programme_params;
         struct VARIABLE_DEFINITION_PARAMS variable_definition_params;
@@ -137,5 +139,7 @@ void ast_push(stack_T *stack, ast_T *ast);
 ast_T **ast_stack_to_array(stack_T *stack, int keep_stack);
 
 void print_ast(ast_T *ast, FILE *file, list_T *indentation);
+
+void free_ast(ast_T *ast, int recursively);
 
 #endif
