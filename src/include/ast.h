@@ -1,39 +1,14 @@
 #ifndef AST_H
 #define AST_H
 
-
 #include "token.h"
 #include "stack.h"
 #include "defined_functions.h"
 #include "list.h"
+#include "symbols.h"
 #include <stdio.h>
 
 typedef struct AST_STRUCT ast_T;
-/*
-struct AST_STRUCT {
-    enum {
-        AST_START,
-        AST_COMPOUND,
-        AST_DEFINITION,
-        AST_REGION,
-        AST_ATOM,
-        AST_CONDITIONAL
-    } type;
-    unsigned int size_bytes;
-    unsigned int children_count;
-    unsigned short additional_data;
-    enum {
-        ADDITIONAL_DATA_BEHIND = 0,
-        ADDITIONAL_DATA_INSIDE = 1
-    } additional_data_position;
-    unsigned int output_count;
-    token_T *token;
-    ast_T **children;
-    defined_function_T *assigned_defined_function;
-    unsigned int selected_defined_function_variation;
-};
-
-*/
 
 enum AST_TYPES {
     PROGRAMME,
@@ -61,7 +36,6 @@ enum AST_STATEMENT_SUBTYPES {
 enum AST_EXPRESSION_SUBTYPES {
     EXPRESSION_NUMBER,
     EXPRESSION_IDENTIFIER,
-    EXPRESSION_IN_PARENTHESIS,
     EXPRESSION_INDEXING,
     EXPRESSION_FUNCALL,
     EXPRESSION_BINARY_OP,
@@ -69,8 +43,10 @@ enum AST_EXPRESSION_SUBTYPES {
 };
 
 struct PROGRAMME_PARAMS {
-    ast_T **definitions;
-    int definitions_count;
+    ast_T **function_definitions;
+    int function_definitions_count;
+    ast_T **variable_definitions;
+    int variable_definitions_count;
 };
 
 struct VARIABLE_DEFINITION_PARAMS {
@@ -106,10 +82,6 @@ struct LITERAL_EXPRESSION_PARAMS {
     token_T *token;
 };
 
-struct PARENTED_EXPRESSION_PARAMS {
-    ast_T *expression;
-};
-
 struct INDEXING_EXPRESSION_PARAMS {
     ast_T *arrray_expression, *index_expression;
 };
@@ -133,6 +105,11 @@ struct UNARY_OP_EXPRESSION_PARAMS {
 struct AST_STRUCT {
     int type;
     int subtype;
+    unsigned int size;
+    command_T command;
+    unsigned char return_type;
+    symbol_T *symbol;
+    unsigned char is_returning;
     union {
         struct PROGRAMME_PARAMS programme_params;
         struct VARIABLE_DEFINITION_PARAMS variable_definition_params;
@@ -142,7 +119,6 @@ struct AST_STRUCT {
         struct LOOP_STATEMENT_PARAMS loop_statement_params;
         struct REGULAR_EXPRESSION_STATEMENT_PARAMS regular_expression_statement_params;
         struct LITERAL_EXPRESSION_PARAMS literal_expression_params;
-        struct PARENTED_EXPRESSION_PARAMS parented_expression_params; 
         struct INDEXING_EXPRESSION_PARAMS indexing_expression_params;
         struct FUNCALL_EXPRESSION_PARAMS funcall_expression_params;
         struct BINARY_OP_EXPRESSION_PARAMS binary_op_expression_params;

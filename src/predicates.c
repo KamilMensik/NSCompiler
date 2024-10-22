@@ -7,3 +7,7 @@ int is_symbol(char c, int can_be_underscore) {
 int is_number(char c, int unused) {
     return (c >= 48 && c <= 57);
 }
+
+int is_not_quote(char c, int unused) {
+    return (c != '"');
+}

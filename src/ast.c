@@ -4,9 +4,11 @@
 #include <stdlib.h>
 
 ast_T *init_ast(int type, int subtype) {
-    ast_T *ast = malloc(sizeof(struct AST_STRUCT));
+   ast_T *ast = malloc(sizeof(struct AST_STRUCT));
     ast->type = type;
     ast->subtype = subtype;
+    ast->symbol = NULL;
+    ast->is_returning = 0;
 
     return ast;
 }
@@ -65,9 +67,9 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
         case PROGRAMME:
             indentation = init_list(8);
             fprintf(file, "PROGRAMME\n");
-            for (int i = 0; i < ast->params.programme_params.definitions_count; i++) {
-                list_push_immediate_char(indentation, (i != ast->params.programme_params.definitions_count - 1));
-                print_ast(ast->params.programme_params.definitions[i], file, indentation);
+            for (int i = 0; i < ast->params.programme_params.function_definitions_count; i++) {
+                list_push_immediate_char(indentation, (i != ast->params.programme_params.function_definitions_count - 1));
+                print_ast(ast->params.programme_params.function_definitions[i], file, indentation);
                 list_pop_immediate(indentation);
             }
             free(indentation);
@@ -80,7 +82,7 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
                     list_push_immediate_char(indentation, 1);
                     print_arrow(file, indentation);
                     fprintf(file, "PARAMETERS=(");
-                    int param_size = ast->params.function_definition_params.parameters_count / 2;
+                    int param_size = ast->params.function_definition_params.parameters_count;
                     for (int i = 0; i < param_size; i++) {
                         fprintf(file, "%s %s", ast->params.function_definition_params.parameters[2*i]->value, ast->params.function_definition_params.parameters[2*i+1]->value);
                         if (i != param_size - 1)
@@ -138,6 +140,12 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
                     print_ast(ast->params.binary_op_expression_params.r_expression, file, indentation);
                     list_pop_immediate(indentation);
                     break; 
+                case EXPRESSION_UNARY_OP:
+                    fprintf(file, "U_OP: %s\n", ast->params.unary_op_expression_params.op->value);
+                    list_push_immediate_char(indentation, 0);
+                    print_ast(ast->params.unary_op_expression_params.expression, file, indentation);
+                    list_pop_immediate(indentation);
+                    break;                   
                 default:
                     fprintf(file, "\n");
             }
@@ -186,9 +194,11 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
                     break;
                 case STATEMENT_RETURN:
                     fprintf(file, "RET\n");
-                    list_push_immediate_char(indentation, 0);
-                    print_ast(ast->params.regular_expression_statement_params.expression, file, indentation);
-                    list_pop_immediate(indentation);
+                    if (ast->params.regular_expression_statement_params.expression != NULL) {
+                        list_push_immediate_char(indentation, 0);
+                        print_ast(ast->params.regular_expression_statement_params.expression, file, indentation);
+                        list_pop_immediate(indentation);
+                    }
                     break;
                 case STATEMENT_VARIABLE_DECLARATION:
                     fprintf(file, "DEFVAR TYPE=%s NAME=%s\n", ast->params.variable_definition_params.type->value, ast->params.variable_definition_params.name->value);
@@ -200,44 +210,3 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
             break;
     }
 }
-
-/*
-void print_ast(ast_T *ast) {
-    char *readable_type;
-    switch (ast->type) {
-        case AST_ATOM:
-            readable_type = "ATOM";
-            break;
-        case AST_COMPOUND:
-            readable_type = "COMPOUND";
-            break;
-        case AST_START:
-            readable_type = "START";
-            break;
-        case AST_CONDITIONAL:
-            readable_type = "CONDITIONAL";
-            break;
-        case AST_DEFINITION:
-            readable_type = "DEFINITION";
-            break;
-        case AST_REGION:
-            readable_type = "REGION";
-            break;
-    }
-
-    printf("(AST %s", readable_type);
-    if (ast->token != NULL) {
-        printf(" ");
-        print_token(ast->token);
-    }
-    if (ast->children_count > 0) {
-        printf(" (CHILDREN ");
-        for (int i = 0; i < ast->children_count; i++) {
-            print_ast(ast->children[i]);
-            printf(" ");
-        }
-        printf(")");
-    }
-    printf(")");
-}
-*/

@@ -1,6 +1,6 @@
 #include "include/lexer.h"
 #include "include/predicates.h"
-#include "include/hashmap.h"
+#include "include/token.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -57,6 +57,7 @@ token_T *lexer_get_next_token(lexer_T *lexer) {
         if (lexer->c == ' ')
             lexer_skip_whitespace(lexer);
 
+        if (lexer->c == '"') return lexer_collect_token(lexer, 1, 1, TOKEN_STRING, is_not_quote);
         if (is_number(lexer->c, 0)) return lexer_collect_token(lexer, 0, 0, TOKEN_NUMBER, is_number);
         if (is_symbol(lexer->c, 0)) return lexer_collect_token(lexer, 0, 0, TOKEN_IDENTIFIER, is_symbol);
         if (lexer->c == '\n') {
@@ -93,6 +94,8 @@ token_T *lexer_collect_token(lexer_T *lexer, int skip_first_char, int skip_after
         }
     }
 
+    printf("%s\n", token_value);
+
     if (!skip_after_last) lexer->should_get_next_character = 0;
 
     return init_token(token_type, token_value, lexer->line, cached_char_index);
@@ -114,6 +117,17 @@ token_T *lexer_collect_operator(lexer_T *lexer) {
             lexer_next_char(lexer);
             if (lexer->c == '-')
                 return init_token(TOKEN_UNARY_OPERATOR, "--", lexer->line, lexer->char_index);
+            else if (is_number(lexer->c, 0)) {
+                lexer->should_get_next_character = 0;
+                token_T *token = lexer_get_next_token(lexer);
+                char *str = malloc(sizeof(char) * (strlen(token->value) + 2));
+                str[0] = '-';
+                str[1] = '\0';
+                strcat(str, token->value);
+                free(token->value);
+                token->value = str;
+                return token;
+            }
             
             lexer->should_get_next_character = 0;
             return init_token(TOKEN_BINARY_OPERATOR, "-", lexer->line, lexer->char_index);
@@ -129,7 +143,7 @@ token_T *lexer_collect_operator(lexer_T *lexer) {
                 return init_token(TOKEN_BINARY_OPERATOR, "==", lexer->line, lexer->char_index);
             
             lexer->should_get_next_character = 0;
-            return init_token(TOKEN_ASSIGNMENT, "=", lexer->line, lexer->char_index);
+            return init_token(TOKEN_BINARY_OPERATOR, "=", lexer->line, lexer->char_index);
         case '>':
             lexer_next_char(lexer);
             if (lexer->c == '=')
@@ -181,6 +195,8 @@ token_T *lexer_collect_operator(lexer_T *lexer) {
             return lexer_collect_char_token(lexer, TOKEN_CURLY_BRACE);
         case ';':
             return lexer_collect_char_token(lexer, TOKEN_SEMICOLON);
+        case ',':
+            return lexer_collect_char_token(lexer, TOKEN_DIVIDER);
     }
 
     printf("UNKNOWN OPERATOR! %c ABCD", lexer->c);

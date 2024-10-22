@@ -10,6 +10,8 @@ hashmap_node_T *init_hashmap_node(char *key, void *item) {
     strcpy(kept_key, key);
     new_node->key = kept_key;
     new_node->item = item;
+
+    return new_node;
 }
 
 hashmap_T *new_hashmap(int size) {

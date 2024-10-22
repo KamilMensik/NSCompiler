@@ -1,4 +1,5 @@
 #include "include/token.h"
+#include "include/data_types.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,10 +24,16 @@ token_T *init_token(int type, char *value, int line, int char_index) {
         if (keywords == NULL)
             keywords = init_keywords();
 
-        char *res = (char *)hashmap_get(keywords, value);
-        if (res != NULL) {
+        char *try_get_keyword = (char *)hashmap_get(keywords, value);
+        if (try_get_keyword != NULL) {
             token->type = TOKEN_KEYWORD;
-            token->keyword_id = (int)*res;
+            token->keyword_id = (int)*try_get_keyword;
+        } else {
+            int *try_get_datatype = get_data_type(value);
+            if (try_get_datatype != NULL) {
+                token->type = TOKEN_DATA_TYPE;
+                token->data_type_id = try_get_datatype[0];
+            }
         }
     }
 
@@ -108,9 +115,6 @@ void print_token(token_T *token) {
         case TOKEN_BINARY_OPERATOR:
             readable_type = "BINARY OPERATOR";
             break;
-        case TOKEN_ASSIGNMENT:
-            readable_type = "ASSIGNMENT";
-            break;
         case TOKEN_PARENTHESIS:
             readable_type = "PARENTHESIS";
             break;
@@ -135,8 +139,4 @@ void print_token(token_T *token) {
         printf("(TOKEN %s %s KEYWORD_ID: %d)", readable_type, token->value, token->keyword_id);
     else
         printf("(TOKEN %s %s)", readable_type, token->value);
-}
-
-int token_data_type(token_T *token) {
-    return (token->type == TOKEN_KEYWORD) || token->keyword_id >= 7;
 }

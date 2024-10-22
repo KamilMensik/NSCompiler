@@ -1,7 +1,7 @@
 exec = compiler.out
 sources = ${wildcard src/*.c}
 objects = ${sources:.c=.o}
-flags = -g
+flags = -g -Wno-multichar
 
 $(exec): $(objects)
 	gcc -g $(objects) $(flags) -o $(exec)

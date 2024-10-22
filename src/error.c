@@ -5,10 +5,11 @@
 void throw_token_error(token_T *token, char *error_message) {
     printf("Error detected on line %d:%d. %s Got: ", token->line, token->char_index, error_message);
     print_token(token);
+    printf("\n");
     exit(1);
 }
 
 void throw_error(char *message) {
-    printf("%s", message);
+    printf("%s\n", message);
     exit(1);
 }

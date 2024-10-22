@@ -1,35 +1,31 @@
 #ifndef DEFINED_FUNCTIONS_H
 #define DEFINED_FUNCTIONS_H
 
-#include "hashmap.h"
+extern char command_names[][10];
 
-typedef enum {
-    DATA_INT
-} DATA_TYPE;
+enum command_value_type {
+    VALUE_INSIDE = 0,
+    VALUE_OUTSIDE = 1,
+};
 
-typedef struct DEFINED_FUNCTION_VARIATION_STRUCT {
-    int *parameters;
-    int *output;
-    unsigned int code;
-} defined_function_variation_T;
+typedef struct COMMAND_STRUCT {
+    unsigned char code;
+    unsigned char value_type;
+    unsigned int value;
+} command_T;
 
-typedef struct DEFINED_FUNCTION_STRUCT {
-    unsigned int parameter_count;
-    unsigned int output_count;
-    unsigned int variation_count;
-    defined_function_variation_T **variations;
-} defined_function_T;
-
-hashmap_T *generate_data_type_conversion_table();
-
-DATA_TYPE *get_data_type(hashmap_T *data_type_conversion_table, char *string);
-
-void generate_defined_functions_hashmap();
-
-void defined_functions_hashmap_set(char *key, defined_function_T *defined_function);
-
-defined_function_T *defined_functions_hashmap_get(char *key);
+unsigned int string_to_int(char *str);
 
 int operator_priority(char *op);
+
+unsigned char data_type_is_number(unsigned char data_type);
+
+void handle_variable_assignment(void *ast);
+
+void handle_unary_operator_expression(void *ast);
+
+void handle_binary_operator_expression(void *ast);
+
+unsigned char get_command_code(char *name);
 
 #endif

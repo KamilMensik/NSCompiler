@@ -11,30 +11,34 @@ enum KEYWORDS {
     IF = 3,
     ELSE = 4,
     WHILE = 5,
-    RETURN = 6, 
-    INT = 7
+    RETURN = 6,
+    INCLUDE = 7,
 };
 
 enum TOKEN_TYPES {
     TOKEN_UNARY_OPERATOR,
     TOKEN_BINARY_OPERATOR,
-    TOKEN_ASSIGNMENT,
     TOKEN_IDENTIFIER,
     TOKEN_NUMBER,
     TOKEN_DIVIDER,
     TOKEN_ENDLINE,
-    TOKEN_PARENTHESIS = 7,
-    TOKEN_SQUARE_BRACKET = 8,
-    TOKEN_CURLY_BRACE = 9,
+    TOKEN_PARENTHESIS,
+    TOKEN_SQUARE_BRACKET,
+    TOKEN_CURLY_BRACE,
     TOKEN_SEMICOLON,
     TOKEN_EOF,
     TOKEN_KEYWORD,
+    TOKEN_DATA_TYPE,
+    TOKEN_STRING,
 };
 
 typedef struct TOKEN_STRUCT {
     int type;
     char *value;
-    int keyword_id;
+    union {
+        int keyword_id;
+        int data_type_id;
+    };
     int line;
     int char_index;
 } token_T;
