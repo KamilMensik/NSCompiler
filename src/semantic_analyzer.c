@@ -2,6 +2,7 @@
 #include "include/ast.h"
 #include "include/data_types.h"
 #include "include/defined_functions.h"
+#include "include/optimalizer.h"
 #include "include/symbols.h"
 #include "stdlib.h"
 #include "include/error.h"
@@ -13,7 +14,7 @@ void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement);
 void analyze_variable(semantic_analyzer_T *analyzer, ast_T *variable);
 
 // Returns data type of expression
-void analyze_number(semantic_analyzer_T *analyzer, ast_T *expression) {
+void analyze_number(ast_T *expression) {
     int converted_number = atoi(expression->params.literal_expression_params.token->value);
     if (converted_number < 256) {
         expression->size = 1;
@@ -101,34 +102,35 @@ void analyze_unary_operator(semantic_analyzer_T *analyzer, ast_T *expression) {
 
 void analyze_funcall(semantic_analyzer_T *analyzer, ast_T *expression) {
     struct FUNCALL_EXPRESSION_PARAMS *params = &expression->params.funcall_expression_params;
-    function_T *function = expression->symbol->function;
+    symbol_T *sym = expression->symbol;
+    unsigned char *param_datatypes = sym->type == function ? sym->function->param_datatypes : sym->embedded_function->param_datatypes;
     for (int i = 0; i < params->param_expressions_size; i++) {
         ast_T *child_expression = params->param_expressions[i];
         params->param_expressions[i] = analyze_expression(analyzer, child_expression);
         expression->size += child_expression->size;
 
-        if (data_type_is_number(function->param_datatypes[i])) {
+        if (data_type_is_number(param_datatypes[i])) {
             if (!data_type_is_number(child_expression->return_type)) {
                 printf("%d. parameter of function is not a number. Got: %s\n", i, data_type_strings[params->param_expressions[i]->return_type]);
                 exit(1);
             }
-        } else if (function->param_datatypes[i] != child_expression->return_type) {
-                printf("%d. parameter of function expected to be: %s. Got: %s\n", i, data_type_strings[function->param_datatypes[i]], data_type_strings[params->param_expressions[i]->return_type]);
+        } else if (param_datatypes[i] != child_expression->return_type) {
+                printf("%d. parameter of function expected to be: %s. Got: %s\n", i, data_type_strings[param_datatypes[i]], data_type_strings[params->param_expressions[i]->return_type]);
                 exit(1);
         }
     }
 
-    expression->return_type = function->return_type;
-    expression->command.code = get_command_code("CALL");
-    expression->command.value_type = VALUE_OUTSIDE;
-    expression->command.value = function->address;
-    expression->size += 2;
+    expression->return_type = sym->type == function ? sym->function->return_type : sym->embedded_function->return_type;
+    expression->command.code = sym->type == function ? get_command_code("CALL") : sym->embedded_function->command_code;
+    expression->command.value_type = sym->type == function ? VALUE_OUTSIDE : VALUE_INSIDE;
+    expression->command.value = sym->type == function ? sym->function->address : 0;
+    expression->size += sym->type == function ? 2 : 1;
 }
 
 ast_T *analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression) {
     switch(expression->subtype) {
         case EXPRESSION_NUMBER:
-            analyze_number(analyzer, expression);
+            analyze_number(expression);
             break;
         case EXPRESSION_STRING:
             expression->return_type = STRING;
@@ -152,6 +154,7 @@ ast_T *analyze_expression(semantic_analyzer_T *analyzer, ast_T *expression) {
             break;
     }
 
+    optimalize(expression);
     return expression;
 }
 
@@ -220,7 +223,7 @@ void analyze_conditional_statement(semantic_analyzer_T *analyzer, ast_T *stateme
 
     // Create else block if it doesnt exist already
     if (params->else_block_statement == NULL)
-        params->else_block_statement = init_ast(STATEMENT, STATEMENT_NOP);
+        params->else_block_statement = init_ast(STATEMENT, STATEMENT_NOP, statement->line, statement->char_index);
 
     // Analyze else block + assign correct command
     analyze_statement(analyzer, params->else_block_statement);
@@ -267,6 +270,13 @@ void analyze_variable_declaration_statement(semantic_analyzer_T *analyzer, ast_T
     handle_variable_assignment(statement);
 }
 
+void analyze_expression_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
+        statement->params.regular_expression_statement_params.expression = analyze_expression(analyzer, statement->params.regular_expression_statement_params.expression);
+        statement->size = statement->params.regular_expression_statement_params.expression->size;
+        if (statement->params.regular_expression_statement_params.expression->return_type != NONE)
+            printf("WARNING: Return value of expression on line %d:%d is not used. Add ':d' to drop it to prevent potential errors\n", statement->line, statement->char_index);
+}
+
 void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
     switch (statement->subtype) {
         case STATEMENT_COMPOUND:
@@ -282,8 +292,7 @@ void analyze_statement(semantic_analyzer_T *analyzer, ast_T *statement) {
             analyze_return_statement(analyzer, statement);
             break;
         case STATEMENT_EXPRESSION:
-            statement->params.regular_expression_statement_params.expression = analyze_expression(analyzer, statement->params.regular_expression_statement_params.expression);
-            statement->size = statement->params.regular_expression_statement_params.expression->size;
+            analyze_expression_statement(analyzer, statement);
             break;
         case STATEMENT_CONDITIONAL:
             analyze_conditional_statement(analyzer, statement);
@@ -312,6 +321,10 @@ void analyze_function(semantic_analyzer_T *analyzer, ast_T *function) {
         function->is_returning = 0;
     } else {
         function->is_returning = 1;
+    }
+
+    for (int i = 0; i < function->params.function_definition_params.parameter_assignment_asts->top; i++) {
+        function->size += ((ast_T *)function->params.function_definition_params.parameter_assignment_asts->array[i])->size;
     }
 
     analyzer->defined_function_sizes += function->size;

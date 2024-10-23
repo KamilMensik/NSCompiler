@@ -137,7 +137,7 @@ ast_T *parse_expression(parser_T *parser, list_T *tokens) {
         token_T *token = expression_get_safe(tokens, i);
         if (token==NULL) break;
 
-        ast_T *expression = init_ast(EXPRESSION, 0);
+        ast_T *expression = init_ast(EXPRESSION, 0, token->line, token->char_index);
         switch (token->type) {
             case TOKEN_NUMBER:
                 expression->subtype = EXPRESSION_NUMBER;
@@ -156,14 +156,14 @@ ast_T *parse_expression(parser_T *parser, list_T *tokens) {
                 expression->params.literal_expression_params.token = token;
                 if (expression_get_safe(tokens, i+1) && ((token_T *)(tokens->array[i + 1]))->type == TOKEN_PARENTHESIS) {
                     symbol_T *symbol = get_symbol(token->value, NULL);
-                    if (symbol == NULL || symbol->type != function)
+                    if (symbol == NULL || (symbol->type != function && symbol->type != embedded_function))
                         throw_token_error(token, "Symbol is not a function");
 
                     token = tokens->array[++i];
                     if (token->value[0] != '(')
                         throw_token_error(token, "Expression error, expected '('.");
 
-                    ast_T *funcall_expression = init_ast(EXPRESSION, EXPRESSION_FUNCALL);
+                    ast_T *funcall_expression = init_ast(EXPRESSION, EXPRESSION_FUNCALL, expression->line, expression->char_index);
                     funcall_expression->symbol = symbol;
                     stack_T *arguments = init_stack();
                     depth = init_stack();
@@ -237,7 +237,7 @@ ast_T *parse_expression(parser_T *parser, list_T *tokens) {
                                         throw_token_error(token, "Expression error, expected indexing expression.");
 
                                     free_stack(depth);
-                                    ast_T *indexing_expression = init_ast(EXPRESSION, EXPRESSION_INDEXING);
+                                    ast_T *indexing_expression = init_ast(EXPRESSION, EXPRESSION_INDEXING, expression->line, expression->char_index);
                                     indexing_expression->params.indexing_expression_params.arrray_expression = expression;
                                     indexing_expression->params.indexing_expression_params.index_expression = parse_expression(parser, token_list);
                                     list_push(expressions, indexing_expression);
@@ -344,7 +344,7 @@ ast_T *parse_expression(parser_T *parser, list_T *tokens) {
         if (expressions->top < 2)
             throw_token_error(op, "Operator missing its expressions");
 
-        ast_T *binary_expression = init_ast(EXPRESSION, EXPRESSION_BINARY_OP);
+        ast_T *binary_expression = init_ast(EXPRESSION, EXPRESSION_BINARY_OP, op->line, op->char_index);
         binary_expression->params.binary_op_expression_params.op = op;
         binary_expression->params.binary_op_expression_params.r_expression = (ast_T *)list_pop(expressions);
         binary_expression->params.binary_op_expression_params.l_expression = (ast_T *)list_pop(expressions);
@@ -362,7 +362,7 @@ ast_T *parse_statement(parser_T *parser, token_T *token) {
 
     if (token == NULL)
         token = lexer_get_next_token(lexer);
-    ast_T *statement = init_ast(STATEMENT, 0);
+    ast_T *statement = init_ast(STATEMENT, 0, token->line, token->char_index);
     stack_T *stack = NULL;
     list_T *expression_tokens = NULL;
     int tmp_size;
@@ -439,7 +439,9 @@ ast_T *parse_statement(parser_T *parser, token_T *token) {
 
 ast_T *parse_function_definition(parser_T *parser) {
     lexer_T *lexer = parser->lexer;
-    ast_T *ast = init_ast(DEFINITION, DEFINITION_FUNCTION);
+    ast_T *ast = init_ast(DEFINITION, DEFINITION_FUNCTION, lexer->last_token->line, lexer->last_token->char_index);
+    ast->params.function_definition_params.parameter_assignment_asts = init_list(8);
+    free_token(lexer->last_token);
     token_T *token = lexer_get_next_token(lexer);
     stack_T *stack = init_stack();
 
@@ -493,6 +495,7 @@ ast_T *parse_function_definition(parser_T *parser) {
         }
     } else {
         free_token(token);
+        free_stack(stack);
         ast->params.function_definition_params.parameters_count = 0;
         ast->params.function_definition_params.parameters = NULL;
     }
@@ -504,13 +507,52 @@ ast_T *parse_function_definition(parser_T *parser) {
                                 ast->params.function_definition_params.parameters);
 
     ast->params.function_definition_params.statement = parse_statement(parser, NULL);
+
+    for (int i = 0; i < ast->params.function_definition_params.parameters_count; i++) {
+        token_T *param_name = ast->params.function_definition_params.parameters[2 * i + 1];
+        ast_T *param_assignment_ast = init_ast(EXPRESSION, EXPRESSION_IDENTIFIER, param_name->line, param_name->char_index);
+        variable_T *var = get_symbol(param_name->value, parser->context)->variable;
+        param_assignment_ast->symbol = get_symbol(param_name->value, parser->context);
+        char command[10] = "STRL";
+        switch(var->type) {
+            case SINT:
+                strcat(command, "S");
+                break;
+            case SBYTE:
+                strcat(command, "SB");
+                break;
+            case UBYTE:
+                strcat(command, "B");
+                break;
+            case SSHORT:
+                strcat(command, "SH");
+                break;
+            case USHORT:
+                strcat(command, "H");
+                break;
+        }
+        unsigned int memory_address = var->context->memory_assignment_end - var->offset;
+        if (memory_address >= 256) {
+            strcat(command, "L");
+            param_assignment_ast->command.value_type = VALUE_OUTSIDE;
+            param_assignment_ast->size = 2;
+        } else {
+            param_assignment_ast->size = 1;
+            param_assignment_ast->command.value_type = VALUE_INSIDE;
+        }
+        param_assignment_ast->command.code = get_command_code(command);
+        param_assignment_ast->command.value = memory_address;
+        list_push(ast->params.function_definition_params.parameter_assignment_asts, param_assignment_ast);
+    }
+
     parser->context = NULL;
     return ast;
 }
 
 ast_T *parse_variable_definition(parser_T *parser, int type) {
-    ast_T *ast = init_ast(DEFINITION, type);
     lexer_T *lexer = parser->lexer;
+    ast_T *ast = init_ast(DEFINITION, type, lexer->last_token->line, lexer->last_token->char_index);
+    free_token(lexer->last_token);
 
     token_T *token = lexer_get_next_token(lexer);
     if (token->type != TOKEN_DATA_TYPE)
@@ -562,7 +604,7 @@ ast_T *parse_file_include(parser_T *parser) {
             throw_token_error(token, "Error when including file. Expected ; to finish the statement.");
         free_token(token);
 
-        ast_T *empty_programme = init_ast(PROGRAMME, 0);
+        ast_T *empty_programme = init_ast(PROGRAMME, 0, 0, 0);
         empty_programme->params.programme_params.function_definitions_count = 0;
         empty_programme->params.programme_params.variable_definitions_count = 0;
         return empty_programme;
@@ -600,13 +642,10 @@ ast_T *parse_uncertain(parser_T *parser) {
         case TOKEN_KEYWORD:
             switch(token->keyword_id) {
                 case FUN:
-                    free_token(token);
                     return parse_function_definition(parser);
                 case LET:
-                    free_token(token);
                     return parse_variable_definition(parser, DEFINITION_VARIABLE);
                 case CONST:
-                    free_token(token);
                     return parse_variable_definition(parser, DEFINITION_CONSTANT);
                 case INCLUDE:
                     free_token(token);
@@ -645,7 +684,7 @@ ast_T *parser_parse(parser_T *parser) {
             ast_push(new_ast->subtype == DEFINITION_FUNCTION ? function_definitions : variable_definitions, new_ast);
     }
 
-    ast_T *programme_ast = init_ast(PROGRAMME, 0);
+    ast_T *programme_ast = init_ast(PROGRAMME, 0, 0, 0);
     programme_ast->params.programme_params.function_definitions_count = function_definitions->size;
     programme_ast->params.programme_params.function_definitions = ast_stack_to_array(function_definitions, 0);
     programme_ast->params.programme_params.variable_definitions_count = variable_definitions->size;

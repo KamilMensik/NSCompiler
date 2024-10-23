@@ -62,6 +62,11 @@ void build_nyassembly(ast_T *ast, FILE *output, FILE *nyassembly_output) {
                     fprintf(nyassembly_output, "    RAISE STACK BY: %d\n", ast->symbol->function->memory_assignment_end);
                     int p = swap_endian(ast->symbol->function->memory_assignment_end);
                     fwrite(&p, sizeof(unsigned short), 1, output);
+                    for (int i = ast->params.function_definition_params.parameter_assignment_asts->top - 1; i >= 0 ; i--) {
+                        print_command_binary(ast->params.function_definition_params.parameter_assignment_asts->array[i], output);
+                        print_command_readable(ast->params.function_definition_params.parameter_assignment_asts->array[i], nyassembly_output);
+                    }
+
                     build_nyassembly(ast->params.function_definition_params.statement, output, nyassembly_output);
                     if (!ast->is_returning)
                         print_retn(output, nyassembly_output);

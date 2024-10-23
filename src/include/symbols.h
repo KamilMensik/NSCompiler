@@ -10,7 +10,8 @@
 enum SYMBOL_TYPE {
     function,
     constant,
-    variable
+    variable,
+    embedded_function,
 };
 
 typedef struct FUNCTION_STRUCT {
@@ -23,6 +24,13 @@ typedef struct FUNCTION_STRUCT {
     unsigned int memory_assignment_end;
     unsigned int address;
 } function_T;
+
+typedef struct EMBEDDED_FUNCTION_STRUCT {
+    unsigned char return_type;
+    unsigned char param_count;
+    unsigned char *param_datatypes;
+    unsigned char command_code;
+} embedded_function_T;
 
 typedef struct CONSTANT_STRUCT {
     unsigned char type;
@@ -47,6 +55,7 @@ typedef struct SYMBOL_STRUCT {
         function_T *function;
         variable_T *variable;
         constant_T *constant;
+        embedded_function_T *embedded_function;
     };
 
 } symbol_T;
@@ -58,6 +67,8 @@ void free_symbols();
 symbol_T *get_symbol(char *name, char *context);
 
 void set_symbol(char *name, char *context, symbol_T *sym);
+
+symbol_T *init_embedded_function(char *name, unsigned char return_type, unsigned int line, list_T *parameters);
 
 symbol_T *init_function(char *name, unsigned char return_type, unsigned int line, unsigned int param_count, token_T **params);
 

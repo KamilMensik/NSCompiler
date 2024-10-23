@@ -11,6 +11,7 @@
 
 int main(int argc, char **argv) {
     init_symbols();
+    init_defined_functions();
     clock_t start, end;
     double total_time_used;
     start = clock();

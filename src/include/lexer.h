@@ -12,6 +12,7 @@ typedef struct LEXER_STRUCT {
     unsigned char should_get_next_character;
     token_T *peeked_token;
     unsigned char collecting_string;
+    token_T *last_token;
 } lexer_T;
 
 lexer_T* init_lexer(FILE *file, char *filename);

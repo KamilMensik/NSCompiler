@@ -1,4 +1,5 @@
 #include "include/symbols.h"
+#include "include/defined_functions.h"
 #include "include/hashmap.h"
 #include "include/list.h"
 
@@ -108,6 +109,25 @@ void set_symbol(char *name, char *context, symbol_T *sym) {
 
         hashmap_set(symbol_table, name, sym);
     }
+}
+symbol_T *init_embedded_function(char *name, unsigned char return_type, unsigned int line, list_T *parameters) {
+    embedded_function_T *fun = malloc(sizeof(struct EMBEDDED_FUNCTION_STRUCT));
+    fun->return_type = return_type;
+    fun->param_count = parameters->top;
+    fun->param_datatypes = malloc(sizeof(unsigned int) * parameters->top);
+    fun->command_code = get_command_code(name);
+    for (int i = 0; i < parameters->top; i++) {
+        fun->param_datatypes[i] = ((token_T *)(parameters->array[i]))->data_type_id;
+        free_token((token_T *)(parameters->array[i]));
+    }
+    free_list(parameters);
+
+    symbol_T *sym = malloc(sizeof(struct SYMBOL_STRUCT));
+    sym->type = embedded_function;
+    sym->embedded_function = fun;
+
+    set_symbol(name, NULL, sym);
+    return sym;
 }
 
 symbol_T *init_function(char *name, unsigned char return_type, unsigned int line, unsigned int param_count, token_T **params) {

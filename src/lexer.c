@@ -13,6 +13,7 @@ lexer_T* init_lexer(FILE *file, char *filename) {
     lexer->line = 1;
     lexer->should_get_next_character = 0;
     lexer->peeked_token = NULL;
+    lexer->last_token = NULL;
     lexer->collecting_string = 0;
     lexer->filename = malloc(sizeof(char) * (strlen(filename) + 1));
     strcpy(lexer->filename, filename);
@@ -67,22 +68,25 @@ token_T *lexer_get_next_token(lexer_T *lexer) {
 
         if (lexer->c == '"') {
             lexer->collecting_string = 1;
-            token_T *res = lexer_collect_token(lexer, 1, 1, TOKEN_STRING, is_not_quote);
+            lexer->last_token = lexer_collect_token(lexer, 1, 1, TOKEN_STRING, is_not_quote);
             lexer->collecting_string = 0;
-            return res;
+            return lexer->last_token;
         }
         if (is_number(lexer->c, 0)) return lexer_collect_token(lexer, 0, 0, TOKEN_NUMBER, is_number);
         if (is_symbol(lexer->c, 0)) return lexer_collect_token(lexer, 0, 0, TOKEN_IDENTIFIER, is_symbol);
         if (lexer->c == '\n') {
                 lexer->char_index = 0;
                 lexer->line+=1;
-                return lexer_get_next_token(lexer);
+                lexer->last_token = lexer_get_next_token(lexer);
+                return lexer->last_token;
         }
 
-        return lexer_collect_operator(lexer);
+        lexer->last_token = lexer_collect_operator(lexer);
+        return lexer->last_token;
     }
 
-    return init_token(TOKEN_EOF, "EOF", lexer->line, lexer->char_index, 0);
+    lexer->last_token = init_token(TOKEN_EOF, "EOF", lexer->line, lexer->char_index, 0);
+    return lexer->last_token;
 }
 
 token_T *lexer_collect_token(lexer_T *lexer, int skip_first_char, int skip_after_last, int token_type, int (*condition)(char, int)) {
@@ -109,7 +113,8 @@ token_T *lexer_collect_token(lexer_T *lexer, int skip_first_char, int skip_after
 
     if (!skip_after_last) lexer->should_get_next_character = 0;
 
-    return init_token(token_type, token_value, lexer->line, cached_char_index, 1);
+    lexer->last_token = init_token(token_type, token_value, lexer->line, cached_char_index, 1);
+    return lexer->last_token;
 }
 
 token_T *lexer_collect_operator(lexer_T *lexer) {
@@ -196,6 +201,13 @@ token_T *lexer_collect_operator(lexer_T *lexer) {
             
             lexer->should_get_next_character = 0;
             return init_token(TOKEN_BINARY_OPERATOR, "|", lexer->line, lexer->char_index, 0);
+        case ':':
+            lexer_next_char(lexer);
+            if (lexer->c == 'D')
+                return init_token(TOKEN_UNARY_OPERATOR, ":d", lexer->line, lexer->char_index, 0);
+
+            printf("UNKNOWN OPERATOR! %c ABCD", lexer->c);
+            exit(1);
         case '^': case '~':
             return lexer_collect_char_token(lexer, TOKEN_BINARY_OPERATOR);
         case '(': case ')':

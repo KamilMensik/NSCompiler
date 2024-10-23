@@ -59,6 +59,7 @@ struct FUNCTION_DEFINITION_PARAMS {
     token_T *type, *name;
     token_T **parameters;
     int parameters_count;
+    list_T *parameter_assignment_asts;
     ast_T *statement;
 };
 
@@ -112,6 +113,8 @@ struct AST_STRUCT {
     symbol_T *symbol;
     unsigned char is_returning;
     unsigned char is_constant;
+    unsigned int line;
+    unsigned int char_index;
     union {
         struct PROGRAMME_PARAMS programme_params;
         struct VARIABLE_DEFINITION_PARAMS variable_definition_params;
@@ -128,7 +131,7 @@ struct AST_STRUCT {
     } params;
 };
 
-ast_T *init_ast(int type, int subtype);
+ast_T *init_ast(int type, int subtype, unsigned int line, unsigned int char_index);
 
 ast_T *ast_pop(stack_T *stack);
 

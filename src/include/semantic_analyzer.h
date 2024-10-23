@@ -13,6 +13,8 @@ semantic_analyzer_T *init_semantic_analyzer();
 
 void free_semantic_analyzer(semantic_analyzer_T *analyzer);
 
+void analyze_number(ast_T *expression);
+
 ast_T *semantic_analyze(semantic_analyzer_T *analyzer, ast_T *programme);
 
 #endif

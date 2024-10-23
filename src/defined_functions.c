@@ -3,8 +3,11 @@
 #include "include/hashmap.h"
 #include "include/data_types.h"
 #include "include/symbols.h"
+#include "include/lexer.h"
+#include "include/token.h"
 #include "stdio.h"
 #include "include/ast.h"
+#include <stdio.h>
 #include <string.h>
 
 #define ARR_LEN(X) (sizeof(X) / sizeof(X[0]))
@@ -22,7 +25,7 @@ char command_names[][10] = { "STOP", "LNUM", "LNUML", "LDR", "LDRL", "LDRH",
                              "CMPLEQ", "CMPGEQ", "CMPEQ", "CMPNEQ", "BAND", "BOR",
                              "BXOR", "AND", "OR", "NOT", "CALL", "RET",
                              "RETN", "JMP", "JMPL", "CJMP", "CJMPL", "JMPB",
-                             "JMPBL", "CJMPB", "CJMPBL" };
+                             "JMPBL", "CJMPB", "CJMPBL", "DROP", "PRINT" };
 
 const unsigned char number_datatypes[] = { SINT, UINT, SBYTE, UBYTE, SSHORT, USHORT };
 hashmap_T *command_codes = NULL;
@@ -36,14 +39,71 @@ void generate_command_codes() {
     }
 }
 
+void init_defined_functions() {
+    generate_command_codes();
+    FILE *defined_functions_config = fopen("src/config/defined_functions.cfg", "r");
+    lexer_T *lexer = init_lexer(defined_functions_config, "config/defined_functions.cfg");
+    token_T *token = lexer_get_next_token(lexer);
+    while(token->type != TOKEN_EOF) {
+        if (token->type != TOKEN_KEYWORD || token->keyword_id != FUN)
+            throw_token_error(token, "Expected FUN.");
+        free_token(token);
+        token = lexer_get_next_token(lexer);
+        if (token->type != TOKEN_DATA_TYPE)
+            throw_token_error(token, "Expected datatype.");
+        unsigned char return_type = token->data_type_id;
+        free_token(token);
+        token_T *name_token = lexer_get_next_token(lexer);
+        if (token->type != TOKEN_IDENTIFIER)
+            throw_token_error(token, "Expected function name.");
+        token = lexer_get_next_token(lexer);
+        if (token->type != TOKEN_PARENTHESIS || token->value[0] != '(')
+            throw_token_error(token, "Expected opening parenthesis.");
+        free_token(token);
+        list_T *parameter_datatypes = init_list(8);
+        token = lexer_peek(lexer);
+        if (token->type == TOKEN_PARENTHESIS) {
+            if (token->value[0] != ')')
+                throw_token_error(token, "Expected closing parenthesis.");
+
+            free_token(token);
+        } else {
+            while (1) {
+                token = lexer_get_next_token(lexer);
+                if (token->type != TOKEN_DATA_TYPE)
+                    throw_token_error(token, "Expected datatype");
+
+                list_push(parameter_datatypes, token);
+                
+                token = lexer_get_next_token(lexer);
+                if (token->type == TOKEN_PARENTHESIS) {
+                    if (token->value[0] != ')')
+                        throw_token_error(token, "Expected closing parenthesis.");
+
+                    free_token(token);
+                    break;
+                } else if (token->type == TOKEN_DIVIDER) {
+                    free_token(token);
+                } else {
+                    throw_token_error(token, "Expected closing parenthesis or ',' to indicate new parameter");
+                }
+            }
+        }
+        token = lexer_get_next_token(lexer);
+        if (token->type != TOKEN_SEMICOLON)
+            throw_token_error(token, "';' expected.");
+        free_token(token);
+
+        init_embedded_function(name_token->value, return_type, 0, parameter_datatypes);
+        token = lexer_get_next_token(lexer);
+    }
+}
+
 void free_command_codes() {
     free_hashmap(command_codes, 1);
 }
 
 unsigned char get_command_code(char *name) {
-    if (command_codes == NULL)
-        generate_command_codes();
-
     unsigned char *res = hashmap_get(command_codes, name);
     if (res == NULL) {
         printf("HYPER ERROR! COMMAND: %s NOT FOUND IN DATABASE!\n", name);
@@ -85,11 +145,16 @@ void throw_error_unless_correct_datatypes(int res) {
 void handle_unary_operator_expression(void *ast) {
     ast_T *expression = (ast_T *)ast;
     struct UNARY_OP_EXPRESSION_PARAMS params = expression->params.unary_op_expression_params;
-    switch (string_to_int(expression->params.binary_op_expression_params.op->value)) {
+    switch (string_to_int(expression->params.unary_op_expression_params.op->value)) {
         case '!':
             throw_error_unless_correct_datatypes(data_type_is_number(params.expression->return_type));
             expression->return_type = SBYTE;
             expression->command.code = get_command_code("NOT");
+            break;
+        case ':d':
+            throw_error_unless_correct_datatypes(params.expression->return_type != NONE);
+            expression->return_type = NONE;
+            expression->command.code = get_command_code("DROP");
             break;
     }
 }
@@ -99,7 +164,7 @@ void handle_variable_assignment(void *ast) {
     ast_T *l_expression = NULL;
     ast_T *r_expression = NULL;
     if (expression->type == STATEMENT) {
-        l_expression = init_ast(EXPRESSION, EXPRESSION_IDENTIFIER);
+        l_expression = init_ast(EXPRESSION, EXPRESSION_IDENTIFIER, expression->line, expression->char_index);
         l_expression->symbol = expression->symbol;
         r_expression = expression->params.variable_definition_params.expression;
     } else {

@@ -1,3 +1,9 @@
-fun none test(int t) {
-    let int b = 1 + 1 + 2 * 3;
+fun none test(int a, int b) {
+    return;
+}
+
+fun none main() {
+    1:d;
+    print(1);
+    test(1, 2);
 }

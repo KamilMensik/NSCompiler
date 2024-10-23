@@ -4,13 +4,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-ast_T *init_ast(int type, int subtype) {
+ast_T *init_ast(int type, int subtype, unsigned int line, unsigned int char_index) {
    ast_T *ast = malloc(sizeof(struct AST_STRUCT));
     ast->type = type;
     ast->subtype = subtype;
     ast->symbol = NULL;
     ast->is_returning = 0;
     ast->is_constant = 0;
+    ast->size = 0;
+    ast->line = line;
+    ast->char_index = char_index;
 
     return ast;
 }
@@ -216,7 +219,7 @@ void print_ast(ast_T *ast, FILE *file, list_T *indentation) {
 list_T *constants_to_free = NULL;
 
 void free_ast(ast_T *ast, int recursively) {
-    if (ast->is_constant)
+    if (!ast || ast->is_constant)
         return;
 
     switch (ast->type) {
@@ -254,6 +257,7 @@ void free_ast(ast_T *ast, int recursively) {
                     free_token(ast->params.function_definition_params.name);
                     for (int i = 0; i < ast->params.function_definition_params.parameters_count * 2; i++)
                         free_token(ast->params.function_definition_params.parameters[i]);
+                    free_list(ast->params.function_definition_params.parameter_assignment_asts);
                     free(ast->params.function_definition_params.parameters);
                     break;
             }
