@@ -14,6 +14,10 @@ ast_T *init_ast(int type, int subtype, unsigned int line, unsigned int char_inde
     ast->size = 0;
     ast->line = line;
     ast->char_index = char_index;
+    ast->return_type = NONE;
+    ast->command.code = 0;
+    ast->command.value = 0;
+    ast->command.value_type = VALUE_INSIDE;
 
     return ast;
 }
@@ -257,6 +261,8 @@ void free_ast(ast_T *ast, int recursively) {
                     free_token(ast->params.function_definition_params.name);
                     for (int i = 0; i < ast->params.function_definition_params.parameters_count * 2; i++)
                         free_token(ast->params.function_definition_params.parameters[i]);
+                    for (int i = 0; i < ast->params.function_definition_params.parameter_assignment_asts->top; i++)
+                        free_ast(ast->params.function_definition_params.parameter_assignment_asts->array[i], recursively);
                     free_list(ast->params.function_definition_params.parameter_assignment_asts);
                     free(ast->params.function_definition_params.parameters);
                     break;
@@ -293,7 +299,8 @@ void free_ast(ast_T *ast, int recursively) {
         case EXPRESSION:
             switch (ast->subtype) {
                 case EXPRESSION_NUMBER: case EXPRESSION_IDENTIFIER: case EXPRESSION_STRING:
-                    free_token(ast->params.literal_expression_params.token);
+                    if (ast->params.literal_expression_params.token)
+                        free_token(ast->params.literal_expression_params.token);
                     break;
                 case EXPRESSION_FUNCALL:
                     free_ast(ast->params.funcall_expression_params.function_expression, recursively);

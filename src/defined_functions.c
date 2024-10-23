@@ -54,8 +54,8 @@ void init_defined_functions() {
         unsigned char return_type = token->data_type_id;
         free_token(token);
         token_T *name_token = lexer_get_next_token(lexer);
-        if (token->type != TOKEN_IDENTIFIER)
-            throw_token_error(token, "Expected function name.");
+        if (name_token->type != TOKEN_IDENTIFIER)
+            throw_token_error(name_token, "Expected function name.");
         token = lexer_get_next_token(lexer);
         if (token->type != TOKEN_PARENTHESIS || token->value[0] != '(')
             throw_token_error(token, "Expected opening parenthesis.");
@@ -95,8 +95,13 @@ void init_defined_functions() {
         free_token(token);
 
         init_embedded_function(name_token->value, return_type, 0, parameter_datatypes);
+        free_token(name_token);
         token = lexer_get_next_token(lexer);
     }
+
+    free_token(token);
+    free_lexer(lexer);
+    fclose(defined_functions_config);
 }
 
 void free_command_codes() {

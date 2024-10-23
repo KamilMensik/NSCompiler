@@ -542,6 +542,7 @@ ast_T *parse_function_definition(parser_T *parser) {
         }
         param_assignment_ast->command.code = get_command_code(command);
         param_assignment_ast->command.value = memory_address;
+        param_assignment_ast->params.literal_expression_params.token = NULL;
         list_push(ast->params.function_definition_params.parameter_assignment_asts, param_assignment_ast);
     }
 

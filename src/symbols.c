@@ -32,6 +32,10 @@ void free_symbol(symbol_T *sym) {
             free_hashmap(sym->function->variables, 0);
             free(sym->function);
             break;
+        case embedded_function:
+            free(sym->embedded_function->param_datatypes);
+            free(sym->embedded_function);
+            break;
         case variable:
             free(sym->variable);
             break;
