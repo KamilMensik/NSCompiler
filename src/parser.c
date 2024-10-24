@@ -352,6 +352,10 @@ ast_T *parse_expression(parser_T *parser, list_T *tokens) {
     }
 
     free_stack(operators);
+    if (expressions->top > 1) {
+        printf("Error while parsing. More than one unrelated expressions in one statement detected on line %d:%d.\n", parser->last_statement->line, parser->last_statement->char_index);
+        exit(1);
+    }
     ast_T *final_expression = expressions->top == 0 ? NULL : list_pop(expressions);
     free_list(expressions);
     return final_expression;
@@ -363,6 +367,7 @@ ast_T *parse_statement(parser_T *parser, token_T *token) {
     if (token == NULL)
         token = lexer_get_next_token(lexer);
     ast_T *statement = init_ast(STATEMENT, 0, token->line, token->char_index);
+    parser->last_statement = statement;
     stack_T *stack = NULL;
     list_T *expression_tokens = NULL;
     int tmp_size;

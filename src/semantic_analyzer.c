@@ -387,6 +387,10 @@ ast_T *semantic_analyze(semantic_analyzer_T *analyzer, ast_T *programme) {
         
         analyze_function(analyzer, definition);
     }
+
+    symbol_T *main_fun_symbol = get_symbol("MAIN", NULL);
+    if (!(main_fun_symbol && main_fun_symbol->type == function && main_fun_symbol->function->param_count == 0 && main_fun_symbol->function->return_type == NONE))
+        throw_error("Error: Function NONE MAIN not found in the programme!");
    
     return programme;
 }

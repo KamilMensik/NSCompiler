@@ -21,6 +21,7 @@ enum UNCERTAIN_STATES {
 typedef struct PARSER_STRUCT {
     lexer_T *lexer;
     char *context;
+    ast_T *last_statement;
 } parser_T;
 
 parser_T *init_parser(lexer_T *lexer);
